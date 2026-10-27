@@ -3,18 +3,14 @@
 export const dynamic = "force-dynamic";
 
 /**
- * app/agent-registry/page.tsx
- * Agent Registry — Phase 2B.
+ * app/agent-registry/page.tsx  —  Phase 2B
  *
- * Real features in this phase:
- *  - Configuration readiness check (GET /api/agents/registered)
- *  - Manual, user-initiated registration via POST /api/agents/register
- *  - Confirmation step before submitting a transaction
- *  - Live on-chain verification after registration
+ * Left column  : registration panel for the real on-chain coordinator agent.
+ * Right column : agent roster — real registered agent + 3 mock specialist
+ *                agents (clearly labelled "Mock · Demo data").
  *
- * Honestly labeled as not-yet-available:
- *  - Agent discovery / search (Phase 2C+)
- *  - Reputation display (Phase 3+)
+ * Nothing in the mock cards is invented as on-chain truth.
+ * Scores, feedback counts, and trust tiers are marked "demo data" in the UI.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -25,6 +21,62 @@ import {
   EmptyState,
   PageHeader,
 } from "@/components/ui";
+import type { MockAgentDisplay } from "@/lib/agentDefs";
+
+// ---------------------------------------------------------------------------
+// Static mock data — imported from agentDefs so it stays a single source
+// of truth. We can't import server-only modules in a client component, so
+// we duplicate the display-only shape here and keep the canonical definition
+// in lib/agentDefs.ts for the server side.
+// ---------------------------------------------------------------------------
+
+const MOCK_AGENTS: MockAgentDisplay[] = [
+  {
+    id: "mock-summarizer",
+    name: "Text Summarizer",
+    emoji: "📝",
+    gradient: "linear-gradient(135deg, #0ea5e9, #6366f1)",
+    description:
+      "Condenses long documents, research papers, and articles into clear, " +
+      "structured summaries. Specialises in extracting key findings and action items.",
+    capabilities: ["text summarization", "key extraction", "report generation", "NLP"],
+    skill: "natural_language_processing/text_generation/text_generation",
+    domain: "technology/software_engineering/software_engineering",
+    mockScore: 91,
+    mockFeedbacks: 47,
+    trustTier: "Gold",
+  },
+  {
+    id: "mock-code-reviewer",
+    name: "Code Reviewer",
+    emoji: "🔍",
+    gradient: "linear-gradient(135deg, #10b981, #3b82f6)",
+    description:
+      "Reviews code for correctness, security vulnerabilities, and best-practice " +
+      "violations. Supports TypeScript, Rust, Python, and Solana programs.",
+    capabilities: ["code review", "security analysis", "refactoring", "Solana programs"],
+    skill: "natural_language_processing/text_generation/text_generation",
+    domain: "technology/software_engineering/software_engineering",
+    mockScore: 88,
+    mockFeedbacks: 34,
+    trustTier: "Silver",
+  },
+  {
+    id: "mock-data-analyzer",
+    name: "Data Analyzer",
+    emoji: "📊",
+    gradient: "linear-gradient(135deg, #f59e0b, #ef4444)",
+    description:
+      "Processes structured and unstructured datasets, identifies patterns and " +
+      "anomalies, and produces actionable insights with supporting charts.",
+    capabilities: ["data analysis", "anomaly detection", "pattern recognition", "reporting"],
+    skill: "natural_language_processing/text_generation/text_generation",
+    domain: "technology/software_engineering/software_engineering",
+    mockScore: 85,
+    mockFeedbacks: 29,
+    trustTier: "Silver",
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,10 +89,10 @@ interface ConfigStatus {
 }
 
 interface RegistrationRecord {
-  agentId: string;       // local ID, e.g. "coordinator"
-  asset: string;         // base58 on-chain pubkey
-  signature: string;     // base58 tx signature
-  registeredAt: string;  // ISO timestamp
+  agentId: string;
+  asset: string;
+  signature: string;
+  registeredAt: string;
   cluster: string;
 }
 
@@ -57,16 +109,6 @@ interface RegisteredApiResponse {
     error?: string;
   }> | null;
 }
-
-type LiveDataMap = Record<string, {
-  nft_name?: string;
-  owner?: string;
-  agent_uri?: string;
-  atom_enabled?: boolean;
-  collection?: string;
-  error?: string;
-}>;
-
 
 interface RegisterApiResponse {
   ok: boolean;
@@ -93,7 +135,273 @@ type RegistrationState =
   | { phase: "error"; message: string; code?: string };
 
 // ---------------------------------------------------------------------------
-// Configuration status panel
+// Tier helpers
+// ---------------------------------------------------------------------------
+
+const TIER_COLORS: Record<string, string> = {
+  Bronze:   "#cd7f32",
+  Silver:   "#a8a9ad",
+  Gold:     "#f59e0b",
+  Platinum: "#60a5fa",
+};
+
+function ScoreBar({ score }: { score: number }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div
+        style={{
+          flex: 1,
+          height: 4,
+          borderRadius: 2,
+          background: "var(--bg-elevated)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            width: `${score}%`,
+            height: "100%",
+            borderRadius: 2,
+            background:
+              score >= 90
+                ? "var(--accent-green)"
+                : score >= 75
+                ? "var(--accent-blue)"
+                : "var(--accent-amber)",
+            transition: "width 0.6s ease",
+          }}
+        />
+      </div>
+      <span
+        style={{
+          fontSize: "0.6875rem",
+          fontWeight: 700,
+          color:
+            score >= 90
+              ? "var(--accent-green)"
+              : score >= 75
+              ? "var(--accent-blue)"
+              : "var(--accent-amber)",
+          minWidth: 28,
+          textAlign: "right",
+        }}
+      >
+        {score}
+      </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Mock agent card — clearly labeled "Mock · Demo data"
+// ---------------------------------------------------------------------------
+
+function MockAgentCard({ agent }: { agent: MockAgentDisplay }) {
+  const tierColor = TIER_COLORS[agent.trustTier] ?? "var(--text-muted)";
+
+  return (
+    <div
+      className="card p-4"
+      style={{ border: "1px solid var(--border-subtle)", position: "relative" }}
+    >
+      {/* Mock watermark badge */}
+      <div
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          display: "flex",
+          gap: 4,
+        }}
+      >
+        <span className="badge badge-violet" style={{ fontSize: "0.6rem", letterSpacing: "0.05em" }}>
+          Mock
+        </span>
+      </div>
+
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 9,
+            background: agent.gradient,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 18,
+            flexShrink: 0,
+          }}
+        >
+          {agent.emoji}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+            {agent.name}
+          </p>
+          <p className="text-xs text-[var(--text-muted)]">
+            Demo specialist agent
+          </p>
+        </div>
+      </div>
+
+      {/* Description */}
+      <p
+        className="text-xs text-[var(--text-secondary)] mb-3"
+        style={{ lineHeight: 1.5 }}
+      >
+        {agent.description}
+      </p>
+
+      {/* Capabilities */}
+      <div className="flex flex-wrap gap-1 mb-3">
+        {agent.capabilities.map((c) => (
+          <span key={c} className="badge badge-blue" style={{ fontSize: "0.6rem" }}>
+            {c}
+          </span>
+        ))}
+      </div>
+
+      {/* Mock reputation — clearly labeled */}
+      <div
+        className="p-2 rounded"
+        style={{
+          background: "var(--bg-base)",
+          border: "1px solid var(--border-subtle)",
+        }}
+      >
+        <div className="flex items-center justify-between mb-1.5">
+          <span
+            className="text-xs font-semibold"
+            style={{ color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}
+          >
+            Reputation · Demo data
+          </span>
+          <span
+            className="text-xs font-bold"
+            style={{ color: tierColor }}
+          >
+            {agent.trustTier}
+          </span>
+        </div>
+        <ScoreBar score={agent.mockScore} />
+        <p className="text-xs text-[var(--text-muted)] mt-1">
+          {agent.mockFeedbacks} mock feedbacks · score not on-chain
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Real registered agent card
+// ---------------------------------------------------------------------------
+
+function RegisteredAgentCard({ record }: { record: RegistrationRecord }) {
+  return (
+    <div
+      className="card p-4"
+      style={{ border: "1px solid rgba(16,185,129,0.25)", position: "relative" }}
+    >
+      {/* Real on-chain badge */}
+      <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 4 }}>
+        <span className="badge badge-green" style={{ fontSize: "0.6rem" }}>On-chain</span>
+        <span className="badge badge-amber" style={{ fontSize: "0.6rem" }}>{record.cluster}</span>
+      </div>
+
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 9,
+            background: "linear-gradient(135deg, #7c3aed, #3b82f6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 18,
+            flexShrink: 0,
+          }}
+        >
+          🤖
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-[var(--text-primary)]">
+            AHN Coordinator
+          </p>
+          <p className="text-xs text-[var(--text-muted)]">
+            ID: <code className="code-tag">{record.agentId}</code>
+          </p>
+        </div>
+      </div>
+
+      <p className="text-xs text-[var(--text-secondary)] mb-3" style={{ lineHeight: 1.5 }}>
+        Coordinates task discovery, specialist selection, and delegated work in the
+        Autonomous Agent Hiring &amp; Delegation Network.
+      </p>
+
+      <div className="flex flex-wrap gap-1 mb-3">
+        {["task analysis", "specialist discovery", "agent selection", "delegation"].map((c) => (
+          <span key={c} className="badge badge-blue" style={{ fontSize: "0.6rem" }}>{c}</span>
+        ))}
+      </div>
+
+      {/* On-chain data */}
+      <div
+        className="p-2 rounded"
+        style={{ background: "var(--bg-base)", border: "1px solid var(--border-subtle)" }}
+      >
+        <p
+          className="text-xs font-semibold mb-1.5"
+          style={{ color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}
+        >
+          On-chain identity
+        </p>
+        <div className="data-row">
+          <span className="data-row-key">asset</span>
+          <span
+            className="data-row-value"
+            style={{ wordBreak: "break-all", fontSize: "0.625rem", color: "var(--accent-green)" }}
+          >
+            {record.asset}
+          </span>
+        </div>
+        <div className="data-row">
+          <span className="data-row-key">registered</span>
+          <span className="data-row-value" style={{ fontSize: "0.6875rem" }}>
+            {new Date(record.registeredAt).toLocaleString()}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mt-3">
+        <a
+          href={`https://explorer.solana.com/address/${record.asset}?cluster=devnet`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-ghost btn-sm"
+          style={{ fontSize: "0.75rem" }}
+        >
+          View on Explorer ↗
+        </a>
+        <a
+          href={`https://explorer.solana.com/tx/${record.signature}?cluster=devnet`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-ghost btn-sm"
+          style={{ fontSize: "0.75rem" }}
+        >
+          View Tx ↗
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Configuration panel
 // ---------------------------------------------------------------------------
 
 function ConfigPanel({ config }: { config: ConfigStatus }) {
@@ -143,7 +451,7 @@ function ConfigPanel({ config }: { config: ConfigStatus }) {
 }
 
 // ---------------------------------------------------------------------------
-// Agent details preview (static — from agentDefs, not invented)
+// Agent preview (coordinator — static)
 // ---------------------------------------------------------------------------
 
 function AgentPreview() {
@@ -166,9 +474,7 @@ function AgentPreview() {
           🤖
         </div>
         <div>
-          <p className="text-sm font-semibold text-[var(--text-primary)]">
-            AHN Coordinator
-          </p>
+          <p className="text-sm font-semibold text-[var(--text-primary)]">AHN Coordinator</p>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
             ID: <code className="code-tag">coordinator</code>
           </p>
@@ -183,50 +489,19 @@ function AgentPreview() {
       <div>
         <p className="text-xs text-[var(--text-muted)] mb-1.5">Capabilities</p>
         <div className="flex flex-wrap gap-1.5">
-          {[
-            "task analysis",
-            "specialist discovery",
-            "agent selection",
-            "delegation coordination",
-          ].map((cap) => (
-            <Badge key={cap} variant="blue">
-              {cap}
-            </Badge>
-          ))}
+          {["task analysis", "specialist discovery", "agent selection", "delegation coordination"].map(
+            (cap) => <Badge key={cap} variant="blue">{cap}</Badge>
+          )}
         </div>
       </div>
 
       <div className="mono-block text-xs space-y-0">
-        <div className="data-row">
-          <span className="data-row-key">service</span>
-          <span className="data-row-value">A2A</span>
-        </div>
-        <div className="data-row">
-          <span className="data-row-key">skills</span>
-          <span className="data-row-value">natural_language_processing/text_generation</span>
-        </div>
-        <div className="data-row">
-          <span className="data-row-key">domain</span>
-          <span className="data-row-value">technology/software_engineering</span>
-        </div>
-        <div className="data-row">
-          <span className="data-row-key">active</span>
-          <span className="data-row-value" style={{ color: "var(--accent-amber)" }}>
-            false (no live endpoint yet)
-          </span>
-        </div>
-        <div className="data-row">
-          <span className="data-row-key">ATOM</span>
-          <span className="data-row-value" style={{ color: "var(--accent-amber)" }}>
-            disabled (can enable later)
-          </span>
-        </div>
-        <div className="data-row">
-          <span className="data-row-key">network</span>
-          <span className="data-row-value" style={{ color: "var(--accent-blue)" }}>
-            Solana Devnet
-          </span>
-        </div>
+        <div className="data-row"><span className="data-row-key">service</span><span className="data-row-value">A2A</span></div>
+        <div className="data-row"><span className="data-row-key">skills</span><span className="data-row-value">natural_language_processing/text_generation</span></div>
+        <div className="data-row"><span className="data-row-key">domain</span><span className="data-row-value">technology/software_engineering</span></div>
+        <div className="data-row"><span className="data-row-key">active</span><span className="data-row-value" style={{ color: "var(--accent-amber)" }}>false (no live endpoint yet)</span></div>
+        <div className="data-row"><span className="data-row-key">ATOM</span><span className="data-row-value" style={{ color: "var(--accent-amber)" }}>disabled (can enable later)</span></div>
+        <div className="data-row"><span className="data-row-key">network</span><span className="data-row-value" style={{ color: "var(--accent-blue)" }}>Solana Devnet</span></div>
       </div>
     </div>
   );
@@ -247,23 +522,9 @@ function ConfirmationStep({
 }) {
   return (
     <div className="space-y-4">
-      <div
-        className="p-4 rounded-lg"
-        style={{
-          background: "rgba(245,158,11,0.08)",
-          border: "1px solid rgba(245,158,11,0.25)",
-        }}
-      >
+      <div className="p-4 rounded-lg" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>
         <div className="flex items-start gap-2 mb-2">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="var(--accent-amber)"
-            strokeWidth="1.5"
-            style={{ flexShrink: 0, marginTop: 2 }}
-          >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--accent-amber)" strokeWidth="1.5" style={{ flexShrink: 0, marginTop: 2 }}>
             <path d="M8 2L14.5 13.5H1.5L8 2z" />
             <path d="M8 7v3M8 11.5v.5" strokeLinecap="round" />
           </svg>
@@ -272,118 +533,63 @@ function ConfirmationStep({
           </p>
         </div>
         <ul className="text-sm text-[var(--text-secondary)] space-y-1 ml-5 list-disc">
-          <li>
-            This will upload agent metadata to IPFS (Pinata) and submit a{" "}
-            <strong>Solana Devnet</strong> transaction.
-          </li>
-          <li>
-            Estimated cost: <strong>~0.00924 SOL</strong> (verified from SDK docs).
-            This is devnet SOL — not real money.
-          </li>
+          <li>Uploads agent metadata to IPFS (Pinata) and submits a <strong>Solana Devnet</strong> transaction.</li>
+          <li>Estimated cost: <strong>~0.00924 SOL</strong> (devnet — not real money).</li>
           <li>The NFT is minted in the Solana devnet registry program.</li>
-          <li>Registration is reversible only via burnAgent() — not automatic.</li>
           <li>Network: <strong>{config.cluster}</strong></li>
         </ul>
       </div>
-
       <div className="flex gap-3">
-        <button
-          className="btn btn-primary btn-md flex-1"
-          onClick={onConfirm}
-        >
+        <button className="btn btn-primary btn-md flex-1" onClick={onConfirm}>
           Confirm &amp; Register on Devnet
         </button>
-        <button
-          className="btn btn-secondary btn-md"
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
+        <button className="btn btn-secondary btn-md" onClick={onCancel}>Cancel</button>
       </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Success result panel
+// Success panel
 // ---------------------------------------------------------------------------
 
 function SuccessPanel({ result }: { result: RegisterApiResponse }) {
   return (
     <div className="space-y-4">
-      <div
-        className="flex items-center gap-2 p-3 rounded-lg"
-        style={{
-          background: "rgba(16,185,129,0.08)",
-          border: "1px solid rgba(16,185,129,0.25)",
-        }}
-      >
+      <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)" }}>
         <span className="dot dot-green" />
         <span className="text-sm font-medium" style={{ color: "var(--accent-green)" }}>
-          {result.alreadyRegistered
-            ? "Agent was already registered — returning existing record."
-            : "Agent registered successfully on Solana Devnet!"}
+          {result.alreadyRegistered ? "Agent already registered — returning existing record." : "Agent registered on Solana Devnet!"}
         </span>
       </div>
 
       <div className="mono-block space-y-0">
         <div className="data-row">
           <span className="data-row-key">asset (pubkey)</span>
-          <span
-            className="data-row-value"
-            style={{ color: "var(--accent-green)", wordBreak: "break-all" }}
-          >
-            {result.agentId}
-          </span>
+          <span className="data-row-value" style={{ color: "var(--accent-green)", wordBreak: "break-all" }}>{result.agentId}</span>
         </div>
         {result.signature && (
           <div className="data-row">
             <span className="data-row-key">tx signature</span>
-            <span
-              className="data-row-value"
-              style={{ wordBreak: "break-all", fontSize: "0.6875rem" }}
-            >
-              {result.signature}
-            </span>
+            <span className="data-row-value" style={{ wordBreak: "break-all", fontSize: "0.6875rem" }}>{result.signature}</span>
           </div>
         )}
         {result.metadataUri && (
           <div className="data-row">
             <span className="data-row-key">metadata URI</span>
-            <span
-              className="data-row-value"
-              style={{ wordBreak: "break-all" }}
-            >
-              {result.metadataUri}
-            </span>
-          </div>
-        )}
-        {result.registeredAt && (
-          <div className="data-row">
-            <span className="data-row-key">registered at</span>
-            <span className="data-row-value">{result.registeredAt}</span>
+            <span className="data-row-value" style={{ wordBreak: "break-all" }}>{result.metadataUri}</span>
           </div>
         )}
       </div>
 
       <div className="flex flex-wrap gap-3">
         {result.explorerUrl && (
-          <a
-            href={result.explorerUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-secondary btn-sm"
-          >
+          <a href={result.explorerUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
             View Agent on Explorer ↗
           </a>
         )}
         {result.txExplorerUrl && !result.alreadyRegistered && (
-          <a
-            href={result.txExplorerUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-secondary btn-sm"
-          >
+          <a href={result.txExplorerUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
             View Transaction ↗
           </a>
         )}
@@ -393,126 +599,35 @@ function SuccessPanel({ result }: { result: RegisterApiResponse }) {
 }
 
 // ---------------------------------------------------------------------------
-// Registered agent card (for agents loaded from registered-agents.json)
-// ---------------------------------------------------------------------------
-
-function RegisteredAgentCard({ record }: { record: RegistrationRecord }) {
-  return (
-    <div className="card p-4">
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex items-center gap-3">
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 8,
-              background: "linear-gradient(135deg, #7c3aed44, #3b82f644)",
-              border: "1px solid var(--border-default)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 16,
-              flexShrink: 0,
-            }}
-          >
-            🤖
-          </div>
-          <div>
-            <p className="text-sm font-medium text-[var(--text-primary)]">
-              AHN Coordinator
-            </p>
-            <p className="text-xs text-[var(--text-muted)]">
-              ID: <code className="code-tag">{record.agentId}</code>
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <Badge variant="green">Registered</Badge>
-          <Badge variant="amber">{record.cluster}</Badge>
-        </div>
-      </div>
-
-      <div className="mono-block space-y-0 text-xs">
-        <div className="data-row">
-          <span className="data-row-key">asset</span>
-          <span
-            className="data-row-value"
-            style={{ wordBreak: "break-all", fontSize: "0.6875rem" }}
-          >
-            {record.asset}
-          </span>
-        </div>
-        <div className="data-row">
-          <span className="data-row-key">registered</span>
-          <span className="data-row-value">
-            {new Date(record.registeredAt).toLocaleString()}
-          </span>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2 mt-3">
-        <a
-          href={`https://explorer.solana.com/address/${record.asset}?cluster=devnet`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-ghost btn-sm"
-          style={{ fontSize: "0.75rem" }}
-        >
-          View on Explorer ↗
-        </a>
-        <a
-          href={`https://explorer.solana.com/tx/${record.signature}?cluster=devnet`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-ghost btn-sm"
-          style={{ fontSize: "0.75rem" }}
-        >
-          View Tx ↗
-        </a>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main registration panel
+// Registration panel (left column)
 // ---------------------------------------------------------------------------
 
 function RegistrationPanel() {
   const [state, setState] = useState<RegistrationState>({ phase: "idle" });
 
-  // Load config + existing records on mount
   const loadStatus = useCallback(async () => {
     setState({ phase: "loading_config" });
     try {
-      const res = await fetch("/api/agents/registered?load=true");
+      const res = await fetch("/api/agents/registered");
       const data: RegisteredApiResponse = await res.json();
-      setState({
-        phase: "ready",
-        config: data.config,
-        records: data.records,
-      });
+      setState({ phase: "ready", config: data.config, records: data.records });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to load configuration.";
-      setState({ phase: "error", message: msg });
+      setState({ phase: "error", message: err instanceof Error ? err.message : "Failed to load." });
     }
   }, []);
 
   useEffect(() => { loadStatus(); }, [loadStatus]);
 
-  // User clicks "Register" → move to confirmation step
   function handleRegisterClick() {
     if (state.phase !== "ready") return;
     setState({ phase: "confirming", config: state.config, records: state.records });
   }
 
-  // User cancels confirmation
   function handleCancel() {
     if (state.phase !== "confirming") return;
     setState({ phase: "ready", config: state.config, records: state.records });
   }
 
-  // User confirms → submit the transaction
   async function handleConfirm() {
     setState({ phase: "registering" });
     try {
@@ -525,57 +640,25 @@ function RegistrationPanel() {
       if (data.ok) {
         setState({ phase: "success", result: data });
       } else {
-        setState({
-          phase: "error",
-          message: data.error ?? "Registration failed.",
-          code: data.code,
-        });
+        setState({ phase: "error", message: data.error ?? "Registration failed.", code: data.code });
       }
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Network error contacting the server.";
-      setState({ phase: "error", message: msg });
+      setState({ phase: "error", message: err instanceof Error ? err.message : "Network error." });
     }
   }
 
-  // ── render ──────────────────────────────────────────────────────────────
-
   if (state.phase === "loading_config") {
-    return (
-      <Card>
-        <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-          <span className="dot dot-yellow" />
-          Checking configuration…
-        </div>
-      </Card>
-    );
+    return <Card><div className="flex items-center gap-2 text-sm text-[var(--text-muted)]"><span className="dot dot-yellow" /> Checking configuration…</div></Card>;
   }
 
   if (state.phase === "error") {
     return (
       <Card>
         <SectionHeading>Registration</SectionHeading>
-        <div
-          className="p-3 rounded-lg text-sm mb-3"
-          style={{
-            background: "rgba(239,68,68,0.08)",
-            border: "1px solid rgba(239,68,68,0.25)",
-            color: "var(--accent-red)",
-          }}
-        >
-          {state.code === "MISSING_CONFIG" ? (
-            <>
-              <strong>Configuration required:</strong> {state.message}
-            </>
-          ) : (
-            <>
-              <strong>Error:</strong> {state.message}
-            </>
-          )}
+        <div className="p-3 rounded-lg text-sm mb-3" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "var(--accent-red)" }}>
+          <strong>{state.code === "MISSING_CONFIG" ? "Configuration required" : "Error"}:</strong> {state.message}
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={loadStatus}>
-          Retry
-        </button>
+        <button className="btn btn-secondary btn-sm" onClick={loadStatus}>Retry</button>
       </Card>
     );
   }
@@ -585,28 +668,15 @@ function RegistrationPanel() {
       <Card>
         <SectionHeading>Registration</SectionHeading>
         <SuccessPanel result={state.result} />
-        <button
-          className="btn btn-ghost btn-sm mt-4"
-          onClick={loadStatus}
-          style={{ color: "var(--text-muted)" }}
-        >
-          ← Back to registry
-        </button>
+        <button className="btn btn-ghost btn-sm mt-4" onClick={loadStatus} style={{ color: "var(--text-muted)" }}>← Back to registry</button>
       </Card>
     );
   }
 
-  const config = state.phase === "ready" || state.phase === "confirming"
-    ? state.config
-    : null;
-  const records = state.phase === "ready" || state.phase === "confirming"
-    ? state.records
-    : [];
-
-  const isFullyConfigured = config
-    ? config.signerConfigured && config.ipfsConfigured
-    : false;
-  const coordinatorAlreadyRegistered = records.some((r) => r.agentId === "coordinator");
+  const config = (state.phase === "ready" || state.phase === "confirming") ? state.config : null;
+  const records = (state.phase === "ready" || state.phase === "confirming") ? state.records : [];
+  const isFullyConfigured = config ? config.signerConfigured && config.ipfsConfigured : false;
+  const coordinatorRegistered = records.some((r) => r.agentId === "coordinator");
 
   return (
     <Card>
@@ -615,144 +685,84 @@ function RegistrationPanel() {
         <Badge variant="amber">Devnet</Badge>
       </div>
 
-      {/* Agent preview */}
       <div className="mb-5">
         <p className="text-xs text-[var(--text-muted)] mb-3">Agent to register</p>
         <AgentPreview />
       </div>
 
-      <div
-        className="my-4"
-        style={{ borderTop: "1px solid var(--border-subtle)" }}
-      />
+      <div className="my-4" style={{ borderTop: "1px solid var(--border-subtle)" }} />
 
-      {/* Configuration status */}
       {config && (
         <div className="mb-5">
-          <p className="text-xs text-[var(--text-muted)] mb-3">
-            Server configuration
-          </p>
+          <p className="text-xs text-[var(--text-muted)] mb-3">Server configuration</p>
           <ConfigPanel config={config} />
         </div>
       )}
 
-      {/* Cost note */}
-      <div
-        className="flex items-start gap-2 p-3 rounded mb-4"
-        style={{
-          background: "var(--bg-elevated)",
-          border: "1px solid var(--border-subtle)",
-        }}
-      >
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="var(--text-muted)"
-          strokeWidth="1.5"
-          style={{ flexShrink: 0, marginTop: 1 }}
-        >
+      <div className="flex items-start gap-2 p-3 rounded mb-4" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}>
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" style={{ flexShrink: 0, marginTop: 1 }}>
           <circle cx="8" cy="8" r="6.5" />
           <path d="M8 7v4M8 5.5v.5" strokeLinecap="round" />
         </svg>
         <p className="text-xs text-[var(--text-muted)]">
-          Registration costs <strong style={{ color: "var(--text-secondary)" }}>~0.00924 SOL</strong>{" "}
-          (devnet, not real money). This figure is taken from the SDK&apos;s own{" "}
-          <code className="code-tag">COSTS.md</code>. Actual cost may vary
-          slightly due to network fees.
+          Registration costs <strong style={{ color: "var(--text-secondary)" }}>~0.00924 SOL</strong> (devnet, not real money). Figure taken from SDK&apos;s <code className="code-tag">COSTS.md</code>.
         </p>
       </div>
 
-      {/* State-specific action area */}
       {state.phase === "confirming" && config && (
-        <ConfirmationStep
-          config={config}
-          onConfirm={handleConfirm}
-          onCancel={handleCancel}
-        />
+        <ConfirmationStep config={config} onConfirm={handleConfirm} onCancel={handleCancel} />
       )}
 
       {state.phase === "registering" && (
         <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            className="animate-spin"
-          >
-            <path d="M13.5 2.5A7 7 0 1 1 3 11" />
-            <path d="M13.5 2.5V7h-4.5" />
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="animate-spin">
+            <path d="M13.5 2.5A7 7 0 1 1 3 11" /><path d="M13.5 2.5V7h-4.5" />
           </svg>
           Uploading metadata and submitting transaction…
         </div>
       )}
 
       {state.phase === "ready" && (
-        <>
-          {coordinatorAlreadyRegistered ? (
-            <div
-              className="p-3 rounded-lg text-sm"
-              style={{
-                background: "rgba(16,185,129,0.06)",
-                border: "1px solid rgba(16,185,129,0.2)",
-              }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className="dot dot-green" />
-                <span className="font-medium" style={{ color: "var(--accent-green)" }}>
-                  Already registered
-                </span>
-              </div>
-              <p className="text-xs text-[var(--text-muted)]">
-                The Coordinator agent is recorded in{" "}
-                <code className="code-tag">data/registered-agents.json</code>. You
-                can re-register to overwrite, but it will cost additional devnet SOL.
-              </p>
+        coordinatorRegistered ? (
+          <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="dot dot-green" />
+              <span className="font-medium" style={{ color: "var(--accent-green)" }}>Already registered</span>
             </div>
-          ) : !isFullyConfigured ? (
-            <div>
-              <button className="btn btn-primary btn-md w-full" disabled>
-                Register Agent on Devnet
-              </button>
-              <p className="text-xs text-[var(--text-muted)] mt-2 text-center">
-                Configure the missing items above in{" "}
-                <code className="code-tag">.env.local</code> to enable registration.
-              </p>
-            </div>
-          ) : (
-            <button
-              className="btn btn-primary btn-md w-full"
-              onClick={handleRegisterClick}
-            >
-              Register Agent on Devnet →
-            </button>
-          )}
-        </>
+            <p className="text-xs text-[var(--text-muted)]">
+              Coordinator is in <code className="code-tag">data/registered-agents.json</code>. Re-registering would cost additional devnet SOL.
+            </p>
+          </div>
+        ) : !isFullyConfigured ? (
+          <div>
+            <button className="btn btn-primary btn-md w-full" disabled>Register Agent on Devnet</button>
+            <p className="text-xs text-[var(--text-muted)] mt-2 text-center">
+              Add missing config to <code className="code-tag">.env.local</code> to enable.
+            </p>
+          </div>
+        ) : (
+          <button className="btn btn-primary btn-md w-full" onClick={handleRegisterClick}>
+            Register Agent on Devnet →
+          </button>
+        )
       )}
     </Card>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Registered agents section
+// Right column — full agent roster
 // ---------------------------------------------------------------------------
 
-function RegisteredAgentsList() {
-  const [records, setRecords] = useState<RegistrationRecord[] | null>(null);
-  const [liveData, setLiveData] = useState<LiveDataMap>({});
+function AgentRoster() {
+  const [records, setRecords] = useState<RegistrationRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/agents/registered?load=true")
+    fetch("/api/agents/registered")
       .then((r) => r.json())
       .then((d: RegisteredApiResponse) => {
-        setRecords(d.records);
-        setLiveData(d.liveData ?? {});
+        setRecords(d.records ?? []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -761,71 +771,56 @@ function RegisteredAgentsList() {
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-4 text-sm text-[var(--text-muted)]">
-        <span className="dot dot-yellow" />
-        Loading…
+        <span className="dot dot-yellow" /> Loading…
       </div>
     );
   }
 
-  if (!records || records.length === 0) {
-    return (
-      <EmptyState
-        icon={
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.4"
-          >
-            <circle cx="8" cy="5" r="2.5" />
-            <path
-              d="M2.5 13.5c0-3.04 2.46-5.5 5.5-5.5s5.5 2.46 5.5 5.5"
-              strokeLinecap="round"
-            />
-          </svg>
-        }
-        title="No agents registered yet"
-        subtitle="Use the registration panel to register the first agent on Solana Devnet."
-      />
-    );
-  }
+  const realAgent = records.find((r) => r.agentId === "coordinator");
 
   return (
-      <div className="grid gap-3 sm:grid-cols-2">
-        {records.map((rec) => (
-          <div key={rec.asset} className="space-y-2">
-            <RegisteredAgentCard record={rec} />
-            {/* On‑chain info if available */}
-            {liveData && liveData[rec.asset] && (
-              <div className="text-xs text-[var(--text-muted)] mt-1 space-y-1">
-                {liveData[rec.asset].error ? (
-                  <p>On‑chain error: {liveData[rec.asset].error}</p>
-                ) : (
-                  <>
-                    {liveData[rec.asset].nft_name && (
-                      <p>NFT name: {liveData[rec.asset].nft_name}</p>
-                    )}
-                    {liveData[rec.asset].owner && (
-                      <p>Owner: {liveData[rec.asset].owner}</p>
-                    )}
-                    {liveData[rec.asset].agent_uri && (
-                      <p>Agent URI: {liveData[rec.asset].agent_uri}</p>
-                    )}
-                    {typeof liveData[rec.asset].atom_enabled === "boolean" && (
-                      <p>ATOM enabled: {liveData[rec.asset].atom_enabled ? "yes" : "no"}</p>
-                    )}
-                    {liveData[rec.asset].collection && (
-                      <p>Collection: {liveData[rec.asset].collection}</p>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
+    <div className="space-y-4">
+      {/* ── On-chain agents ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <SectionHeading>On-Chain Agents</SectionHeading>
+          <Badge variant="green">{realAgent ? "1" : "0"} registered</Badge>
+        </div>
+
+        {realAgent ? (
+          <RegisteredAgentCard record={realAgent} />
+        ) : (
+          <EmptyState
+            icon={
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+                <circle cx="8" cy="5" r="2.5" />
+                <path d="M2.5 13.5c0-3.04 2.46-5.5 5.5-5.5s5.5 2.46 5.5 5.5" strokeLinecap="round" />
+              </svg>
+            }
+            title="No agents registered yet"
+            subtitle="Use the registration panel to register the Coordinator on Solana Devnet."
+          />
+        )}
       </div>
+
+      {/* ── Mock specialist agents ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <SectionHeading>Specialist Agents</SectionHeading>
+          <Badge variant="violet">Mock · Demo data</Badge>
+        </div>
+        <p className="text-xs text-[var(--text-muted)] mb-3">
+          These agents are not registered on-chain. They demonstrate the specialist
+          pool that the delegation flow (Phase 3) will use. Scores and feedback
+          counts are simulated.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-1 xl:grid-cols-1">
+          {MOCK_AGENTS.map((agent) => (
+            <MockAgentCard key={agent.id} agent={agent} />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -843,29 +838,20 @@ export default function AgentRegistryPage() {
       />
 
       <div className="grid gap-5 lg:grid-cols-2">
-        {/* Left: registration panel */}
+        {/* Left: registration panel + program reference */}
         <div className="space-y-5">
           <RegistrationPanel />
 
-          {/* On-chain program reference */}
           <Card>
             <SectionHeading>Registry Programs (Devnet)</SectionHeading>
             <div className="space-y-4">
               {[
-                {
-                  name: "Agent Registry (8004)",
-                  address: "6MuHv4dY4p9E4hSCEPr9dgbCSpMhq8x1vrUexbMVjfw1",
-                },
-                {
-                  name: "ATOM Reputation Engine",
-                  address: "6Mu7qj6tRDrqchxJJPjr9V1H2XQjCerVKixFEEMwC1Tf",
-                },
+                { name: "Agent Registry (8004)", address: "6MuHv4dY4p9E4hSCEPr9dgbCSpMhq8x1vrUexbMVjfw1" },
+                { name: "ATOM Reputation Engine", address: "6Mu7qj6tRDrqchxJJPjr9V1H2XQjCerVKixFEEMwC1Tf" },
               ].map((p) => (
                 <div key={p.name}>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium text-[var(--text-primary)]">
-                      {p.name}
-                    </span>
+                    <span className="text-sm font-medium text-[var(--text-primary)]">{p.name}</span>
                     <Badge variant="amber">devnet</Badge>
                   </div>
                   <a
@@ -883,15 +869,8 @@ export default function AgentRegistryPage() {
           </Card>
         </div>
 
-        {/* Right: registered agents */}
-        <div>
-          <SectionHeading>Registered Agents</SectionHeading>
-          <RegisteredAgentsList />
-          <p className="text-xs text-[var(--text-muted)] mt-3">
-            Agent discovery, search, and reputation display will be added in
-            Phase 2C and Phase 3 once more agents are registered.
-          </p>
-        </div>
+        {/* Right: agent roster */}
+        <AgentRoster />
       </div>
     </div>
   );

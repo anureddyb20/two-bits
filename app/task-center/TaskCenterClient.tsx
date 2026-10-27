@@ -286,10 +286,22 @@ export default function TaskCenterClient() {
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1.5">Execution Mode</label>
-            <select className="task-select" value={executionMode} onChange={(e) => setExecutionMode(e.target.value as "demo" | "live")}>
+            <select className="task-select" value={executionMode} onChange={(e) => {
+              const mode = e.target.value as "demo" | "live";
+              setExecutionMode(mode);
+              setConfirmHire(false);
+            }}>
               <option value="demo">Demo (simulated)</option>
               <option value="live">Live Agent</option>
             </select>
+            {executionMode === "live" && selectedAgentId && (
+                <div className="mt-2">
+                  <label className="inline-flex items-center">
+                    <input type="checkbox" className="form-checkbox" checked={confirmHire} onChange={(e) => setConfirmHire(e.target.checked)} />
+                    <span className="ml-2 text-sm text-[var(--text-muted)]">I confirm hiring and delegating to the selected agent</span>
+                  </label>
+                </div>
+              )}
           </div>
           {selectedAgentId && (
             (() => {
@@ -325,7 +337,7 @@ export default function TaskCenterClient() {
             </p>
           )}
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <button type="submit" className="btn btn-primary btn-md w-full" disabled={submitting}>
+          <button type="submit" className="btn btn-primary btn-md w-full" disabled={submitting || (executionMode === "live" && selectedAgentId !== "" && !confirmHire)}>
             {submitting ? "Submitting…" : "Submit Task"}
           </button>
         </form>

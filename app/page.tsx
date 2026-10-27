@@ -420,7 +420,7 @@ export default function OverviewPage() {
       />
 
       {/* B. Summary metrics — 4 cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard
           label="Registered Agents"
           value="Not yet available"

@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, SectionHeading, EmptyState, DataRow } from "@/components/ui";
+import { Card, SectionHeading, EmptyState, DataRow, Badge } from "@/components/ui";
 import { CATEGORY_TO_SKILLS } from "@/lib/skillMap";
 import { FeedbackSection, TaskFeedback } from "@/components/FeedbackSection";
 import { ResultViewer } from "@/components/ResultViewer";
@@ -269,15 +269,15 @@ export default function TaskCenterClient() {
         <SectionHeading>Submit a Task</SectionHeading>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Title</label>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Title</label>
             <input className="task-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Summarize a paper" />
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Description</label>
-            <textarea className="task-textarea" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the task in detail…" />
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Description</label>
+            <textarea className="task-textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the task in detail…" />
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Category</label>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Category</label>
             <select className="task-select" value={category} onChange={(e) => setCategory(e.target.value)}>
               <option value="research">Research / Summarization</option>
               <option value="coding">Code Review / Generation</option>
@@ -286,7 +286,7 @@ export default function TaskCenterClient() {
             </select>
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Agent</label>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Agent</label>
             {agentsLoading ? (
               <p className="text-sm text-[var(--text-muted)]">Loading agents…</p>
             ) : agents.length === 0 ? (
@@ -303,12 +303,11 @@ export default function TaskCenterClient() {
             )}
             {/* Selected agent details */}
             {selectedAgentId && (
-              <div className="border rounded p-3 mb-4 text-sm text-[var(--text-muted)]">
-                <p><strong>Agent ID:</strong> {selectedAgentId}</p>
-                <p><strong>Asset:</strong> {agents.find((a) => a.agentId === selectedAgentId)?.asset ?? 'Unknown'}</p>
-                <p><strong>Metadata URI:</strong> {agentsLiveData[agents.find((a) => a.agentId === selectedAgentId)?.asset ?? '']?.agent_uri || 'None'}</p>
-                <p><strong>Declared capabilities:</strong> {agentsLiveData[agents.find((a) => a.agentId === selectedAgentId)?.asset ?? '']?.domains?.join(', ') || 'Unknown'}</p>
-                <p><strong>Reputation:</strong> {(() => {
+              <div className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3.5 my-3 text-xs text-[var(--text-secondary)] space-y-1.5 shadow-sm">
+                <p><strong className="text-[var(--text-primary)]">Agent ID:</strong> {selectedAgentId}</p>
+                <p><strong className="text-[var(--text-primary)]">Asset:</strong> <span className="font-mono">{agents.find((a) => a.agentId === selectedAgentId)?.asset ?? 'Unknown'}</span></p>
+                <p><strong className="text-[var(--text-primary)]">Declared capabilities:</strong> {agentsLiveData[agents.find((a) => a.agentId === selectedAgentId)?.asset ?? '']?.domains?.join(', ') || 'Unknown'}</p>
+                <p><strong className="text-[var(--text-primary)]">Reputation:</strong> {(() => {
                   const rep = agentsReputation[selectedAgentId];
                   if (!rep || !rep.totalFeedbacks) return 'No reputation data available.';
                   const parts: string[] = [];
@@ -318,8 +317,8 @@ export default function TaskCenterClient() {
                   parts.push(`negatives: ${rep.negativeCount ?? 'N/A'}`);
                   return parts.join(', ');
                 })()}</p>
-                <p><strong>A2A endpoint:</strong> {agentsLiveData[agents.find((a) => a.agentId === selectedAgentId)?.asset ?? '']?.a2a_endpoint ? `Advertised (${agentsLiveData[agents.find((a) => a.agentId === selectedAgentId)?.asset ?? '']?.a2a_endpoint})` : 'Unknown'}</p>
-                <p><strong>Capability match:</strong> {(() => {
+                <p><strong className="text-[var(--text-primary)]">A2A endpoint:</strong> {agentsLiveData[agents.find((a) => a.agentId === selectedAgentId)?.asset ?? '']?.a2a_endpoint ? `Advertised (${agentsLiveData[agents.find((a) => a.agentId === selectedAgentId)?.asset ?? '']?.a2a_endpoint})` : 'Unknown'}</p>
+                <p><strong className="text-[var(--text-primary)]">Capability match:</strong> {(() => {
                   const live = agentsLiveData[agents.find((a) => a.agentId === selectedAgentId)?.asset ?? ''];
                   const domains = live?.domains;
                   const requiredSkills = CATEGORY_TO_SKILLS[category] ?? [];
@@ -336,7 +335,7 @@ export default function TaskCenterClient() {
             )}
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Execution Mode</label>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Execution Mode</label>
             <select className="task-select" value={executionMode} onChange={(e) => {
               const mode = e.target.value as "demo" | "live";
               setExecutionMode(mode);
@@ -346,10 +345,10 @@ export default function TaskCenterClient() {
               <option value="live">Live Agent</option>
             </select>
             {executionMode === "live" && selectedAgentId && (
-                <div className="mt-2">
-                  <label className="inline-flex items-center">
-                    <input type="checkbox" className="form-checkbox" checked={confirmHire} onChange={(e) => setConfirmHire(e.target.checked)} />
-                    <span className="ml-2 text-sm text-[var(--text-muted)]">I confirm hiring and delegating to the selected agent</span>
+                <div className="mt-2.5 p-2 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-default)]">
+                  <label className="inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="rounded accent-[var(--accent-indigo)]" checked={confirmHire} onChange={(e) => setConfirmHire(e.target.checked)} />
+                    <span className="ml-2 text-xs font-medium text-[var(--text-secondary)]">I confirm hiring and delegating to the selected agent</span>
                   </label>
                 </div>
               )}
@@ -419,13 +418,21 @@ export default function TaskCenterClient() {
         ) : (
           <div className="space-y-3">
             {tasks.map((t) => (
-              <div key={t.id} className="border rounded p-3">
-                <DataRow label="ID">{t.id}</DataRow>
-                <DataRow label="Title">{t.title}</DataRow>
-                <DataRow label="Category">{t.category}</DataRow>
-                <DataRow label="Mode">{t.mode === "live" ? "Live Agent" : "Simulated Demo"}</DataRow>
-                {t.agentId && <DataRow label="Agent">{t.agentId}</DataRow>}
-                <DataRow label="Status">{t.status}</DataRow>
+              <div key={t.id} className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 space-y-2 hover:border-[#3D475C] transition-all shadow-sm">
+                <DataRow label="ID"><span className="text-xs font-mono text-[var(--accent-cyan)]">{t.id}</span></DataRow>
+                <DataRow label="Title"><strong className="text-[var(--text-primary)] font-semibold">{t.title}</strong></DataRow>
+                <DataRow label="Category"><span className="capitalize">{t.category}</span></DataRow>
+                <DataRow label="Mode">
+                  <Badge variant={t.mode === "live" ? "blue" : "muted"}>
+                    {t.mode === "live" ? "Live Agent" : "Simulated Demo"}
+                  </Badge>
+                </DataRow>
+                {t.agentId && <DataRow label="Agent"><code className="code-tag">{t.agentId}</code></DataRow>}
+                <DataRow label="Status">
+                  <Badge variant={t.status === "completed" ? "green" : t.status === "failed" ? "red" : "amber"} className="capitalize">
+                    {t.status}
+                  </Badge>
+                </DataRow>
                 {t.result && (
                   <div className="py-2 border-b border-[var(--border-subtle)]">
                     <span className="data-row-key text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-1">

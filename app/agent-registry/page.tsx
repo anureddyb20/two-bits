@@ -214,7 +214,7 @@ function MockAgentCard({ agent }: { agent: MockAgentDisplay }) {
           gap: 4,
         }}
       >
-        <span className="badge badge-violet" style={{ fontSize: "0.6rem", letterSpacing: "0.05em" }}>
+        <span className="badge badge-violet" style={{ fontSize: "0.75rem", letterSpacing: "0.03em" }}>
           Mock
         </span>
       </div>
@@ -255,9 +255,9 @@ function MockAgentCard({ agent }: { agent: MockAgentDisplay }) {
       </p>
 
       {/* Capabilities */}
-      <div className="flex flex-wrap gap-1 mb-3">
+      <div className="flex flex-wrap gap-1.5 mb-3">
         {agent.capabilities.map((c) => (
-          <span key={c} className="badge badge-blue" style={{ fontSize: "0.6rem" }}>
+          <span key={c} className="badge badge-blue">
             {c}
           </span>
         ))}
@@ -305,9 +305,9 @@ function RegisteredAgentCard({ record }: { record: RegistrationRecord }) {
       style={{ border: "1px solid rgba(16,185,129,0.25)", position: "relative" }}
     >
       {/* Real on-chain badge */}
-      <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 4 }}>
-        <span className="badge badge-green" style={{ fontSize: "0.6rem" }}>On-chain</span>
-        <span className="badge badge-amber" style={{ fontSize: "0.6rem" }}>{record.cluster}</span>
+      <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6 }}>
+        <span className="badge badge-green">On-chain</span>
+        <span className="badge badge-amber">{record.cluster}</span>
       </div>
 
       {/* Header */}
@@ -317,7 +317,7 @@ function RegisteredAgentCard({ record }: { record: RegistrationRecord }) {
             width: 38,
             height: 38,
             borderRadius: 9,
-            background: "linear-gradient(135deg, #7c3aed, #3b82f6)",
+            background: "linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan))",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -342,9 +342,9 @@ function RegisteredAgentCard({ record }: { record: RegistrationRecord }) {
         Autonomous Agent Hiring &amp; Delegation Network.
       </p>
 
-      <div className="flex flex-wrap gap-1 mb-3">
+      <div className="flex flex-wrap gap-1.5 mb-3">
         {["task analysis", "specialist discovery", "agent selection", "delegation"].map((c) => (
-          <span key={c} className="badge badge-blue" style={{ fontSize: "0.6rem" }}>{c}</span>
+          <span key={c} className="badge badge-blue">{c}</span>
         ))}
       </div>
 

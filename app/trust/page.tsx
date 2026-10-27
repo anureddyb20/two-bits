@@ -19,7 +19,7 @@ function ReputationExplainer() {
     { tier: "Bronze",   range: "0–24",  color: "#cd7f32" },
     { tier: "Silver",   range: "25–49", color: "#a8a9ad" },
     { tier: "Gold",     range: "50–74", color: "#f59e0b" },
-    { tier: "Platinum", range: "75–100",color: "#60a5fa" },
+    { tier: "Platinum", range: "75–100",color: "#55D6E8" },
   ];
 
   return (
@@ -115,9 +115,9 @@ function ProofPassExplainer() {
             <span
               style={{
                 width: 22, height: 22, borderRadius: "50%",
-                background: "rgba(59,130,246,0.12)",
-                border: "1px solid rgba(59,130,246,0.3)",
-                color: "var(--accent-blue)",
+                background: "rgba(124,140,255,0.12)",
+                border: "1px solid rgba(124,140,255,0.3)",
+                color: "var(--accent-indigo)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: "0.6875rem", fontWeight: 700, flexShrink: 0,
               }}

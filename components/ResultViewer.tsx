@@ -137,14 +137,14 @@ export function ResultViewer({ result }: ResultViewerProps) {
 
       {/* Rendered Table */}
       {tableData && tableData.headers.length > 0 && (
-        <div className="overflow-x-auto rounded-md border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-1">
+        <div className="overflow-x-auto rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-0.5 shadow-sm">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+              <tr className="border-b border-[var(--border-default)] bg-[var(--bg-surface)]">
                 {tableData.headers.map((h, i) => (
                   <th
                     key={i}
-                    className="p-2.5 font-semibold text-[var(--text-primary)] uppercase tracking-wider text-[11px]"
+                    className="p-3 font-bold text-[var(--text-primary)] uppercase tracking-wider text-[11px]"
                   >
                     {formatInlineText(h)}
                   </th>
@@ -155,7 +155,7 @@ export function ResultViewer({ result }: ResultViewerProps) {
               {tableData.rows.map((row, rIdx) => (
                 <tr key={rIdx} className="hover:bg-[var(--bg-hover)] transition-colors">
                   {row.map((cell, cIdx) => (
-                    <td key={cIdx} className="p-2.5 text-[var(--text-secondary)] align-top leading-relaxed">
+                    <td key={cIdx} className="p-3 text-[var(--text-secondary)] align-top leading-relaxed">
                       {formatInlineText(cell)}
                     </td>
                   ))}

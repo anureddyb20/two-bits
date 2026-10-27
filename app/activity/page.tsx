@@ -53,7 +53,7 @@ function EventTypeLegend() {
               >
                 {e.type}
               </span>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">{e.desc}</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">{e.desc}</p>
             </div>
           </div>
         ))}

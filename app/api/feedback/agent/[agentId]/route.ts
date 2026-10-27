@@ -9,19 +9,9 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(
   request: NextRequest,
-  context?: { params?: Promise<{ agentId: string }> | { agentId: string } }
+  { params }: { params: Promise<{ agentId: string }> }
 ): Promise<NextResponse> {
-  let agentId: string | undefined;
-
-  if (context?.params) {
-    const resolvedParams = await context.params;
-    agentId = resolvedParams?.agentId;
-  }
-
-  if (!agentId) {
-    const parts = request.nextUrl.pathname.split("/").filter(Boolean);
-    agentId = parts[parts.length - 1];
-  }
+  const { agentId } = await params;
 
   if (!agentId || agentId === "[agentId]") {
     return NextResponse.json({ ok: false, error: "agentId missing" }, { status: 400 });

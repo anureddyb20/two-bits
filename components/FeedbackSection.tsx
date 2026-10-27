@@ -137,7 +137,7 @@ export function FeedbackSection({
         : "red";
 
     return (
-      <div className="mt-3 p-3.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] space-y-2.5">
+      <div className="mt-3 p-3.5 rounded-lg border border-[var(--border-default)] bg-[#10141D] space-y-2.5">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <span className="text-amber-400 font-bold text-sm tracking-wide">
@@ -162,20 +162,20 @@ export function FeedbackSection({
 
         {/* Detailed Metrics */}
         <div className="flex flex-wrap gap-2 text-xs text-[var(--text-secondary)]">
-          <span className="px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+          <span className="px-2.5 py-1 rounded bg-[var(--bg-surface)] border border-[var(--border-default)]">
             Accuracy: <strong className="text-[var(--text-primary)]">{existingFeedback.accuracy}/5</strong>
           </span>
-          <span className="px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+          <span className="px-2.5 py-1 rounded bg-[var(--bg-surface)] border border-[var(--border-default)]">
             Quality: <strong className="text-[var(--text-primary)]">{existingFeedback.quality}/5</strong>
           </span>
-          <span className="px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+          <span className="px-2.5 py-1 rounded bg-[var(--bg-surface)] border border-[var(--border-default)]">
             Speed: <strong className="text-[var(--text-primary)]">{existingFeedback.speed}/5</strong>
           </span>
         </div>
 
         {/* Review Note */}
         {existingFeedback.review && (
-          <p className="text-xs text-[var(--text-secondary)] italic border-l-2 border-[var(--accent-blue)] pl-2.5 py-0.5 my-1">
+          <p className="text-xs text-[var(--text-secondary)] italic border-l-2 border-[var(--accent-indigo)] pl-2.5 py-0.5 my-1">
             &ldquo;{existingFeedback.review}&rdquo;
           </p>
         )}
@@ -186,7 +186,7 @@ export function FeedbackSection({
             {existingFeedback.tags.map((tag) => (
               <span
                 key={tag}
-                className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]"
+                className="text-[11px] px-2.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-default)]"
               >
                 {tag}
               </span>
@@ -196,8 +196,8 @@ export function FeedbackSection({
 
         {/* On-Chain Verification Link */}
         {existingFeedback.txSignature && (
-          <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs">
-            <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+          <div className="pt-2.5 border-t border-[var(--border-default)] flex items-center justify-between text-xs">
+            <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z" />
               </svg>
@@ -207,7 +207,7 @@ export function FeedbackSection({
               href={existingFeedback.explorerUrl || `https://explorer.solana.com/tx/${existingFeedback.txSignature}?cluster=devnet`}
               target="_blank"
               rel="noreferrer"
-              className="text-[var(--accent-blue)] hover:underline flex items-center gap-1"
+              className="text-[var(--accent-cyan)] hover:underline flex items-center gap-1 font-medium"
             >
               View Explorer ↗
             </a>
@@ -220,10 +220,10 @@ export function FeedbackSection({
   // 2. Unopened trigger button
   if (!isOpen) {
     return (
-      <div className="mt-3 pt-2 border-t border-[var(--border-subtle)]">
+      <div className="mt-3 pt-2.5 border-t border-[var(--border-default)]">
         <button
           type="button"
-          className="btn btn-secondary btn-sm flex items-center gap-1.5 hover:border-[var(--accent-blue)] transition-all cursor-pointer"
+          className="btn btn-secondary btn-sm flex items-center gap-1.5 hover:border-[var(--accent-indigo)] transition-all cursor-pointer"
           onClick={() => setIsOpen(true)}
         >
           <span className="text-amber-400">★</span>
@@ -316,16 +316,16 @@ export function FeedbackSection({
       </div>
 
       {/* Dimension Sub-Ratings */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-md bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-default)]">
         <div>
-          <label className="text-[11px] font-medium text-[var(--text-muted)] block mb-1">
+          <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
             Accuracy ({accuracy}/5)
           </label>
-          <div className="flex gap-1 text-sm text-amber-400">
+          <div className="flex gap-1.5 text-base text-amber-400">
             {[1, 2, 3, 4, 5].map((v) => (
               <span
                 key={v}
-                className="cursor-pointer"
+                className="cursor-pointer hover:scale-110 transition-transform p-0.5"
                 onClick={() => setAccuracy(v)}
               >
                 {v <= accuracy ? "★" : "☆"}
@@ -334,14 +334,14 @@ export function FeedbackSection({
           </div>
         </div>
         <div>
-          <label className="text-[11px] font-medium text-[var(--text-muted)] block mb-1">
+          <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
             Quality ({quality}/5)
           </label>
-          <div className="flex gap-1 text-sm text-amber-400">
+          <div className="flex gap-1.5 text-base text-amber-400">
             {[1, 2, 3, 4, 5].map((v) => (
               <span
                 key={v}
-                className="cursor-pointer"
+                className="cursor-pointer hover:scale-110 transition-transform p-0.5"
                 onClick={() => setQuality(v)}
               >
                 {v <= quality ? "★" : "☆"}
@@ -350,14 +350,14 @@ export function FeedbackSection({
           </div>
         </div>
         <div>
-          <label className="text-[11px] font-medium text-[var(--text-muted)] block mb-1">
+          <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
             Speed ({speed}/5)
           </label>
-          <div className="flex gap-1 text-sm text-amber-400">
+          <div className="flex gap-1.5 text-base text-amber-400">
             {[1, 2, 3, 4, 5].map((v) => (
               <span
                 key={v}
-                className="cursor-pointer"
+                className="cursor-pointer hover:scale-110 transition-transform p-0.5"
                 onClick={() => setSpeed(v)}
               >
                 {v <= speed ? "★" : "☆"}
@@ -369,7 +369,7 @@ export function FeedbackSection({
 
       {/* Review Comment */}
       <div>
-        <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">
+        <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
           Review / Notes (Optional)
         </label>
         <textarea
@@ -386,17 +386,17 @@ export function FeedbackSection({
         <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
           Feedback Tags
         </label>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {TAG_OPTIONS.map((tag) => {
             const isSelected = tags.includes(tag);
             return (
               <button
                 key={tag}
                 type="button"
-                className={`text-xs px-2.5 py-1 rounded-full border transition-all cursor-pointer ${
+                className={`text-xs px-3 py-1 rounded-full border transition-all cursor-pointer ${
                   isSelected
-                    ? "bg-[rgba(59,130,246,0.15)] border-[var(--accent-blue)] text-[var(--accent-blue)] font-medium"
-                    : "bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border-default)]"
+                    ? "bg-[rgba(124,140,255,0.18)] border-[var(--accent-indigo)] text-[var(--accent-indigo)] font-semibold"
+                    : "bg-[var(--bg-surface)] border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--accent-indigo)] hover:text-[var(--text-primary)]"
                 }`}
                 onClick={() => toggleTag(tag)}
               >

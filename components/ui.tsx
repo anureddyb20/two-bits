@@ -10,7 +10,7 @@ import React from "react";
 // ---------------------------------------------------------------------------
 // Badge
 // ---------------------------------------------------------------------------
-type BadgeVariant = "blue" | "green" | "amber" | "red" | "violet" | "muted" | "outline";
+type BadgeVariant = "blue" | "cyan" | "green" | "amber" | "red" | "violet" | "muted" | "outline";
 
 export function Badge({
   children,
@@ -142,18 +142,18 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 mb-7">
+    <div className="flex items-start justify-between gap-4 mb-7 flex-wrap sm:flex-nowrap">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-[var(--text-primary)] mb-1">
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)] mb-1.5">
           {title}
         </h1>
         {description && (
-          <p className="text-sm text-[var(--text-secondary)] max-w-prose">
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-2xl">
             {description}
           </p>
         )}
       </div>
-      {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
+      {actions && <div className="flex items-center gap-2.5 flex-shrink-0 mt-1 sm:mt-0">{actions}</div>}
     </div>
   );
 }

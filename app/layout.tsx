@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Agent Hiring Network — Solana Agent Registry",
+  title: "TWO BITS — AI Agent Hiring Network",
   description:
     "Autonomous Agent Hiring & Delegation Network built on the Solana Agent Registry (ERC-8004). Discover agents by on-chain identity, delegate tasks, validate results, and post verifiable reputation feedback.",
 };

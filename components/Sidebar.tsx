@@ -92,10 +92,10 @@ function ConnectivityPill() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5 p-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-default)]">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
-          <span style={{ color: "#9945ff", opacity: 0.8, display: "flex" }}>{Icons.solana}</span>
+        <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] font-medium">
+          <span style={{ color: "var(--accent-indigo)", display: "flex" }}>{Icons.solana}</span>
           Solana Devnet
         </div>
         <span
@@ -107,11 +107,11 @@ function ConnectivityPill() {
               : "badge-amber"
           }`}
         >
-          {status === "ok" ? "Live" : status === "error" ? "Error" : "…"}
+          {status === "ok" ? "Live" : status === "error" ? "Offline" : "…"}
         </span>
       </div>
       {slot !== null && (
-        <p className="text-[10px] text-[var(--text-muted)] font-mono">
+        <p className="text-[11px] text-[var(--text-muted)] font-mono">
           slot {slot.toLocaleString()}
         </p>
       )}
@@ -157,10 +157,10 @@ export default function Sidebar() {
       <aside className={`sidebar ${mobileOpen ? "mobile-open" : ""}`}>
         {/* Logo */}
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">A</div>
+          <div className="sidebar-logo-icon">2B</div>
           <div>
-            <div className="sidebar-logo-text">Agent Hiring</div>
-            <div className="sidebar-logo-sub">Network</div>
+            <div className="sidebar-logo-text">TWO BITS</div>
+            <div className="sidebar-logo-sub">AI Agent Network</div>
           </div>
         </div>
 

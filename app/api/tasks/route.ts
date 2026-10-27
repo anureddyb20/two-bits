@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { delegateTask } from "@/lib/agentDelegation";
 import { getReadOnlySdk } from "@/lib/registry";
+import { delegateTask } from "@/lib/agentDelegation";
+import { COORDINATOR_AGENT } from "@/lib/agentDefs";
 import { promises as fs } from "fs";
 import path from "path";
 import { PublicKey } from "@solana/web3.js";
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
     if (!perAgentEndpoint) {
       // If the selected agent is the known coordinator, allow a fallback to the configured coordinator endpoint.
-      if (agentId === "coordinator") {
+      if (agentId === COORDINATOR_AGENT.id) {
         const envEndpoint = process.env.COORDINATOR_AGENT_ENDPOINT;
         if (typeof envEndpoint === "string" && envEndpoint) {
           perAgentEndpoint = envEndpoint;

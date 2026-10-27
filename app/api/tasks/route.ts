@@ -124,8 +124,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // ignore errors – will handle missing endpoint below
     }
     if (!perAgentEndpoint) {
-      // No supported A2A endpoint found for selected agent; abort execution.
-      return NextResponse.json({ ok: false, error: "Selected agent does not expose a supported A2A endpoint" }, { status: 400 });
+      // If the selected agent is the known coordinator, allow a fallback to the configured coordinator endpoint.
+      if (agentId === "coordinator") {
+        const envEndpoint = process.env.COORDINATOR_AGENT_ENDPOINT;
+        if (typeof envEndpoint === "string" && envEndpoint) {
+          perAgentEndpoint = envEndpoint;
+        } else {
+          return NextResponse.json({ ok: false, error: "Coordinator endpoint not configured" }, { status: 400 });
+        }
+      } else {
+        // For any non‑coordinator agent without a verified A2A endpoint, reject the request.
+        return NextResponse.json({ ok: false, error: "Selected agent does not expose a supported A2A endpoint" }, { status: 400 });
+      }
     }
     const delegation = await delegateTask({ title, description, category, agentId, endpoint: perAgentEndpoint });
     // Persist task regardless of success

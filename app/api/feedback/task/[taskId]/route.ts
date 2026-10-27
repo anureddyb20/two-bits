@@ -1,22 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseClient } from "@/lib/supabase";
+import { getFeedbackByTaskId } from "@/lib/feedbackStorage";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  const { searchParams } = request.nextUrl;
-  const taskId = searchParams.get("taskId");
+export async function GET(
+  request: NextRequest,
+  context?: { params?: Promise<{ taskId: string }> | { taskId: string } }
+): Promise<NextResponse> {
+  let taskId: string | undefined;
+
+  if (context?.params) {
+    const resolvedParams = await context.params;
+    taskId = resolvedParams?.taskId;
+  }
+
   if (!taskId) {
-    return NextResponse.json({ ok: false, error: "taskId query param required" }, { status: 400 });
+    taskId = request.nextUrl.searchParams.get("taskId") || undefined;
   }
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from("feedback").select("*", { count: "exact" }).eq("task_id", taskId).single();
-  if (error) {
-    if (error.code === "PGRST116") { // row not found
-      return NextResponse.json({ ok: true, feedback: null });
-    }
-    console.error("Supabase fetch error", error);
-    return NextResponse.json({ ok: false, error: "Failed to fetch feedback" }, { status: 500 });
+
+  // Fallback: extract from URL path
+  if (!taskId) {
+    const segments = request.nextUrl.pathname.split("/").filter(Boolean);
+    taskId = segments[segments.length - 1];
   }
-  return NextResponse.json({ ok: true, feedback: data });
+
+  if (!taskId || taskId === "[taskId]") {
+    return NextResponse.json({ ok: false, error: "taskId required" }, { status: 400 });
+  }
+
+  const feedback = await getFeedbackByTaskId(taskId);
+  return NextResponse.json({ ok: true, feedback });
 }

@@ -273,3 +273,59 @@ export async function getWriteSdk(): Promise<SolanaSDK> {
 export function isWriteConfigured(): boolean {
   return isSignerConfigured() && isIpfsConfigured();
 }
+
+/**
+ * Returns the client evaluator Keypair used for submitting feedback.
+ * The ATOM program prevents an agent's owner from rating their own agent.
+ * We use `new-solana-wallet.json` (or CLIENT_SOLANA_PRIVATE_KEY) if available,
+ * and fall back to getSignerKeypair().
+ */
+export function getClientSignerKeypair(): Keypair {
+  // First check if CLIENT_SOLANA_PRIVATE_KEY is in process.env
+  const clientEnv = process.env.CLIENT_SOLANA_PRIVATE_KEY;
+  if (clientEnv) {
+    try {
+      const parsed = JSON.parse(clientEnv);
+      if (Array.isArray(parsed) && parsed.length === 64) {
+        return Keypair.fromSecretKey(Uint8Array.from(parsed as number[]));
+      }
+    } catch {
+      // Fall through to file check
+    }
+  }
+
+  // Check new-solana-wallet.json in process.cwd()
+  try {
+    const fs = require("fs");
+    const path = require("path");
+    const walletPath = path.join(process.cwd(), "new-solana-wallet.json");
+    if (fs.existsSync(walletPath)) {
+      const raw = fs.readFileSync(walletPath, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length === 64) {
+        return Keypair.fromSecretKey(Uint8Array.from(parsed as number[]));
+      }
+    }
+  } catch {
+    // Ignore error and fall back
+  }
+
+  return getSignerKeypair();
+}
+
+/**
+ * Constructs a write SDK instance specifically for feedback submission
+ * using the client evaluator keypair.
+ */
+export async function getFeedbackWriteSdk(): Promise<SolanaSDK> {
+  const signer = getClientSignerKeypair();
+  const { IPFSClient, SolanaSDK } = await import("8004-solana");
+  const ipfs = new IPFSClient({ pinataEnabled: true, pinataJwt: process.env.PINATA_JWT || "" });
+  return new SolanaSDK({
+    cluster: CLUSTER,
+    rpcUrl: RPC_URL,
+    signer,
+    ipfsClient: ipfs,
+  });
+}
+

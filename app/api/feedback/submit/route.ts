@@ -1,24 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseClient } from "@/lib/supabase";
-
-/**
- * POST /api/feedback/submit
- * Body:
- *   {
- *     taskId: string,
- *     agentId?: string,
- *     executionMode: "demo" | "live",
- *     overallRating: number (1-5),
- *     outcome: "successful" | "partial" | "unsuccessful",
- *     accuracy: number (1-5),
- *     quality: number (1-5),
- *     speed: number (1-5),
- *     review?: string,
- *     tags?: string[]
- *   }
- */
+import { saveFeedback, getFeedbackByTaskId, TaskFeedback } from "@/lib/feedbackStorage";
+import { getFeedbackWriteSdk, isWriteConfigured } from "@/lib/registry";
+import { PublicKey } from "@solana/web3.js";
+import { promises as fs } from "fs";
+import path from "path";
 
 export const dynamic = "force-dynamic";
+
+async function findAgentAsset(agentId: string): Promise<string | null> {
+  const REGISTRY_FILE = path.join(process.cwd(), "data", "registered-agents.json");
+  const FALLBACK_REGISTRY_FILE = path.join(__dirname, "../../../../data/registered-agents.json");
+  try {
+    let raw = "";
+    try {
+      raw = await fs.readFile(REGISTRY_FILE, "utf-8");
+    } catch {
+      raw = await fs.readFile(FALLBACK_REGISTRY_FILE, "utf-8");
+    }
+    const agentRecords: { agentId: string; asset: string }[] = JSON.parse(raw);
+    const rec = agentRecords.find((r) => r.agentId === agentId);
+    return rec ? rec.asset : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let body: unknown;
@@ -30,6 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (typeof body !== "object" || body === null) {
     return NextResponse.json({ ok: false, error: "Invalid payload" }, { status: 400 });
   }
+
   const {
     taskId,
     agentId,
@@ -41,6 +47,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     speed,
     review,
     tags,
+    postOnChain,
   } = body as {
     taskId?: unknown;
     agentId?: unknown;
@@ -52,9 +59,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     speed?: unknown;
     review?: unknown;
     tags?: unknown;
+    postOnChain?: unknown;
   };
 
-  // Basic validation
+  // Validation
   if (
     typeof taskId !== "string" ||
     (agentId !== undefined && typeof agentId !== "string") ||
@@ -75,40 +83,73 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   ) {
     return NextResponse.json({ ok: false, error: "Invalid or missing fields" }, { status: 400 });
   }
-  // Optional fields
-  const safeReview = typeof review === "string" ? review.slice(0, 1000) : null;
+
+  const safeReview = typeof review === "string" ? review.trim().slice(0, 1000) : undefined;
   const safeTags = Array.isArray(tags) ? tags.filter((t) => typeof t === "string") : [];
+  const shouldPostOnChain = Boolean(postOnChain);
 
-  // Prevent duplicate feedback for same task
-  const supabase = getSupabaseClient();
-  const { data: existing, error: existingErr } = await supabase
-    .from("feedback")
-    .select("id", { count: "exact", head: true })
-    .eq("task_id", taskId);
-  if (existingErr) {
-    console.error("Supabase error fetching existing feedback", existingErr);
-    return NextResponse.json({ ok: false, error: "Server error" }, { status: 500 });
-  }
-  if ((existing?.length ?? 0) > 0) {
-    return NextResponse.json({ ok: false, error: "Feedback already submitted for this task" }, { status: 409 });
+  let txSignature: string | undefined;
+  let explorerUrl: string | undefined;
+  let onChainNote: string | undefined;
+
+  // On-chain ATOM feedback submission
+  if (shouldPostOnChain && agentId) {
+    const assetStr = await findAgentAsset(agentId);
+    if (assetStr && isWriteConfigured()) {
+      try {
+        const writeSdk = await getFeedbackWriteSdk();
+        // Convert 1-5 rating into 0-100 score for ATOM engine
+        const score = Math.round(overallRating * 20);
+        const onChainRes = await writeSdk.giveFeedback(new PublicKey(assetStr), {
+          score,
+          value: score,
+          tag1: safeTags[0] || (outcome === "successful" ? "quality" : "general"),
+          tag2: outcome,
+          endpoint: process.env.COORDINATOR_AGENT_ENDPOINT || "https://github.com/HackToBerFest-VVCE/t2c1-two-bits",
+        });
+
+        if (onChainRes && onChainRes.success && onChainRes.signature) {
+          txSignature = onChainRes.signature;
+          explorerUrl = `https://explorer.solana.com/tx/${onChainRes.signature}?cluster=devnet`;
+          onChainNote = "Verified on Solana Devnet";
+        } else if (onChainRes && onChainRes.error) {
+          onChainNote = `On-chain note: ${onChainRes.error}`;
+        }
+      } catch (err) {
+        console.warn("On-chain feedback transaction failed:", err);
+        onChainNote = err instanceof Error ? err.message : "On-chain write error";
+      }
+    }
   }
 
-  // Insert feedback
-  const { error: insertErr } = await supabase.from("feedback").insert({
-    task_id: taskId,
-    agent_id: agentId ?? null,
-    execution_mode: executionMode,
-    overall_rating: overallRating,
+  const existingFeedback = await getFeedbackByTaskId(taskId);
+  const feedbackId = existingFeedback?.id ?? (crypto.randomUUID ? crypto.randomUUID() : `fb-${Date.now()}`);
+  const createdAt = existingFeedback?.createdAt ?? new Date().toISOString();
+
+  const feedbackRecord: TaskFeedback = {
+    id: feedbackId,
+    taskId,
+    agentId,
+    executionMode,
+    overallRating,
     outcome,
-    accuracy_rating: accuracy,
-    quality_rating: quality,
-    speed_rating: speed,
+    accuracy,
+    quality,
+    speed,
     review: safeReview,
     tags: safeTags,
+    onChain: Boolean(txSignature),
+    txSignature,
+    explorerUrl,
+    createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+
+  await saveFeedback(feedbackRecord);
+
+  return NextResponse.json({
+    ok: true,
+    feedback: feedbackRecord,
+    onChainNote,
   });
-  if (insertErr) {
-    console.error("Supabase insert error", insertErr);
-    return NextResponse.json({ ok: false, error: "Failed to save feedback" }, { status: 500 });
-  }
-  return NextResponse.json({ ok: true });
 }

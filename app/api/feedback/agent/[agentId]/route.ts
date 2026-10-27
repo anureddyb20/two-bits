@@ -1,55 +1,62 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseClient } from "@/lib/supabase";
+import { getFeedbacksByAgentId } from "@/lib/feedbackStorage";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/feedback/agent/:agentId
- * Returns summary and recent feedback for a real agent (exclude demo feedback).
+ * Returns summary and recent feedback for an agent.
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  const { pathname } = request.nextUrl;
-  const parts = pathname.split("/");
-  const agentId = parts[parts.length - 1];
+export async function GET(
+  request: NextRequest,
+  context?: { params?: Promise<{ agentId: string }> | { agentId: string } }
+): Promise<NextResponse> {
+  let agentId: string | undefined;
+
+  if (context?.params) {
+    const resolvedParams = await context.params;
+    agentId = resolvedParams?.agentId;
+  }
+
   if (!agentId) {
+    const parts = request.nextUrl.pathname.split("/").filter(Boolean);
+    agentId = parts[parts.length - 1];
+  }
+
+  if (!agentId || agentId === "[agentId]") {
     return NextResponse.json({ ok: false, error: "agentId missing" }, { status: 400 });
   }
-  const supabase = getSupabaseClient();
-  // Fetch all feedback for this agent where execution_mode = 'live'
-  const { data: feedback, error } = await supabase
-    .from("feedback")
-    .select("overall_rating, outcome, accuracy_rating, quality_rating, created_at")
-    .eq("agent_id", agentId)
-    .eq("execution_mode", "live");
 
-  if (error) {
-    console.error("Supabase fetch error", error);
-    return NextResponse.json({ ok: false, error: "Failed to fetch feedback" }, { status: 500 });
-  }
+  const feedbackList = await getFeedbacksByAgentId(agentId);
 
-  if (!feedback || feedback.length === 0) {
+  if (!feedbackList || feedbackList.length === 0) {
     return NextResponse.json({ ok: true, summary: null, recent: [] });
   }
 
-  const total = feedback.length;
-  const sumOverall = feedback.reduce((sum, f) => sum + (f.overall_rating ?? 0), 0);
+  const total = feedbackList.length;
+  const sumOverall = feedbackList.reduce((sum, f) => sum + (f.overallRating ?? 0), 0);
   const avgOverall = sumOverall / total;
   const outcomeCounts: Record<string, number> = { successful: 0, partial: 0, unsuccessful: 0 };
   let sumAccuracy = 0;
   let sumQuality = 0;
-  feedback.forEach((f) => {
-    const o = f.outcome as string;
+  let sumSpeed = 0;
+
+  feedbackList.forEach((f) => {
+    const o = f.outcome;
     if (outcomeCounts[o] !== undefined) outcomeCounts[o]++;
-    sumAccuracy += f.accuracy_rating ?? 0;
-    sumQuality += f.quality_rating ?? 0;
+    sumAccuracy += f.accuracy ?? 0;
+    sumQuality += f.quality ?? 0;
+    sumSpeed += f.speed ?? 0;
   });
+
   const successRate = (outcomeCounts["successful"] / total) * 100;
   const avgAccuracy = sumAccuracy / total;
   const avgQuality = sumQuality / total;
+  const avgSpeed = sumSpeed / total;
 
-  // recent 5 feedback entries (sorted newest)
-  const recent = feedback
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  // Recent 5 feedbacks
+  const recent = [...feedbackList]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 
   return NextResponse.json({
@@ -60,6 +67,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       successRate,
       averageAccuracy: avgAccuracy,
       averageQuality: avgQuality,
+      averageSpeed: avgSpeed,
     },
     recent,
   });

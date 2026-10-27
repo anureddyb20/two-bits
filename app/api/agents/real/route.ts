@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 // Configuration – read API key only on server side.
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const MODEL = "llama-3.1-8b-instant"; // Groq production text‑generation model
+const MODEL = "openai/gpt-oss-20b"; // Groq production text‑generation model
 const TIMEOUT_MS = 8000; // 8 seconds default
 const MAX_REQUEST_SIZE = 10 * 1024; // 10 KB
 const MAX_RESULT_LENGTH = 2000; // characters

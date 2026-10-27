@@ -158,7 +158,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // 4. Validate configuration (safe — ConfigurationError message contains no secrets)
   let sdk;
   try {
-    sdk = getWriteSdk();
+    sdk = await getWriteSdk();
   } catch (err: unknown) {
     if (err instanceof ConfigurationError) {
       return NextResponse.json(
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // Import getIpfsClient separately — it reads PINATA_JWT once, constructs the client.
     const { getIpfsClient } = await import("@/lib/registry");
-    const ipfs = getIpfsClient();
+    const ipfs = await getIpfsClient();
     const cid = await ipfs.addJson(metadataJson);
     metadataUri = `ipfs://${cid}`;
     console.info(`[register] Metadata uploaded: ${metadataUri}`);

@@ -2,7 +2,22 @@
 
 import { Card, SectionHeading, EmptyState, DataRow } from "@/components/ui";
 import { CATEGORY_TO_SKILLS } from "@/lib/skillMap";
+const COORDINATOR_AGENT_ID = "coordinator";
 import { useEffect, useState } from "react";
+
+// Demo‑only agents – not persisted, used purely for UI demonstration
+
+const DEMO_AGENTS: {agentId: string; asset: string}[] = [
+  { agentId: "demo-research",  asset: "demo-research-asset" },
+  { agentId: "demo-coding",    asset: "demo-coding-asset" },
+  { agentId: "demo-analysis",  asset: "demo-analysis-asset" },
+];
+// Simulated live data for demo agents (no real endpoint)
+const DEMO_LIVE_DATA: Record<string, { a2a_endpoint?: string; domains?: string[] }> = {
+  "demo-research-asset":  { domains: ["summarize", "search"] },
+  "demo-coding-asset":    { domains: ["code", "audit", "refactor"] },
+  "demo-analysis-asset": { domains: ["analysis", "visualize", "statistics"] },
+};
 
 type AgentRecord = {
   agentId: string;
@@ -83,8 +98,12 @@ export default function TaskCenterClient() {
     fetch("/api/agents/registered?load=true")
       .then((r) => r.json())
       .then((data) => {
-        setAgents(data.records ?? []);
-        setAgentsLiveData(data.liveData ?? {});
+        const realAgents = data.records ?? [];
+        const combinedAgents = [...realAgents, ...DEMO_AGENTS];
+        setAgents(combinedAgents);
+        // Merge live data, adding demo agents' simulated live data
+        const mergedLive = { ...(data.liveData ?? {}), ...DEMO_LIVE_DATA };
+        setAgentsLiveData(mergedLive);
         setAgentsLoading(false);
       })
       .catch(() => setAgentsLoading(false));
@@ -122,67 +141,80 @@ export default function TaskCenterClient() {
   // Compute recommendation using reputation (or fallback) once data is ready
   useEffect(() => {
     if (agentsLoading) return;
-    const agentsWithRep = agents.filter((a) => {
+    // Determine which agents have a usable A2A endpoint (or are the known coordinator with fallback)
+    const hasEndpoint = (a: AgentRecord) => {
+      const live = agentsLiveData[a.asset];
+      // Demo agents are eligible only in demo mode (no real endpoint)
+      if (a.agentId.startsWith('demo-')) return executionMode === 'demo';
+      if (live?.a2a_endpoint) return true;
+      // Coordinator can fall back to COORDINATOR_AGENT_ENDPOINT env var (handled server‑side)
+      return a.agentId === COORDINATOR_AGENT_ID;
+    };
+    const eligibleAgents = agents.filter(hasEndpoint);
+
+    // Determine capability match levels and pick best candidate based on capability then reputation
+    const requiredSkills = CATEGORY_TO_SKILLS[category] ?? [];
+
+    // Group agents by match level
+    const fullMatches: AgentRecord[] = [];
+    const partialMatches: AgentRecord[] = [];
+    const fallbackAgents: AgentRecord[] = [];
+    for (const a of eligibleAgents) {
+      const live = agentsLiveData[a.asset];
+      const domains = live?.domains;
+      if (Array.isArray(domains) && requiredSkills.length > 0) {
+        const matchedAll = requiredSkills.every((s) => domains.includes(s));
+        const matchedAny = requiredSkills.some((s) => domains.includes(s));
+        if (matchedAll) fullMatches.push(a);
+        else if (matchedAny) partialMatches.push(a);
+        else fallbackAgents.push(a);
+      } else {
+        // No capability metadata, treat as fallback (endpoint only)
+        fallbackAgents.push(a);
+      }
+    }
+
+    // Choose candidate set based on match priority
+    let candidateSet: AgentRecord[] = [];
+    let matchReason = "";
+    if (fullMatches.length > 0) {
+      candidateSet = fullMatches;
+      matchReason = "full capability match";
+    } else if (partialMatches.length > 0) {
+      candidateSet = partialMatches;
+      matchReason = "partial capability match";
+    } else {
+      candidateSet = fallbackAgents;
+      matchReason = "endpoint presence only";
+    }
+
+    // Within candidate set, select highest reputation as tie‑breaker
+    const candidatesWithRep = candidateSet.filter((a) => {
       const rep = agentsReputation[a.agentId];
-      return rep && rep.totalFeedbacks && rep.totalFeedbacks > 0 && typeof rep.averageScore === 'number';
+      return rep && rep.totalFeedbacks && rep.totalFeedbacks > 0 && typeof rep.averageScore === "number";
     });
     let recId = "";
     let reason = "";
-    if (agentsWithRep.length > 0) {
-      agentsWithRep.sort((a, b) => {
+    if (candidatesWithRep.length > 0) {
+      candidatesWithRep.sort((a, b) => {
         const ra = agentsReputation[a.agentId];
         const rb = agentsReputation[b.agentId];
         const scoreDiff = (rb?.averageScore ?? 0) - (ra?.averageScore ?? 0);
         if (scoreDiff !== 0) return scoreDiff;
         return (rb?.totalFeedbacks ?? 0) - (ra?.totalFeedbacks ?? 0);
       });
-      const best = agentsWithRep[0];
-      const bestRep = agentsReputation[best.agentId];
+      const best = candidatesWithRep[0];
+      const rep = agentsReputation[best.agentId];
       recId = best.agentId;
-      reason = `Agent "${best.agentId}" selected based on reputation: avgScore ${bestRep?.averageScore ?? 0}, feedbacks ${bestRep?.totalFeedbacks ?? 0}, positives ${bestRep?.positiveCount ?? 0}, negatives ${bestRep?.negativeCount ?? 0}.`;
+      reason = `Agent "${best.agentId}" selected based on ${matchReason} and reputation (avgScore ${rep?.averageScore ?? 0}, feedbacks ${rep?.totalFeedbacks ?? 0}).`;
     } else {
-      // Attempt capability‑based recommendation when reputation is unavailable
-      let bestMatchAgentId = "";
-      let bestMatchReason = "";
-      const requiredSkills = CATEGORY_TO_SKILLS[category] ?? [];
-      for (const a of agents) {
-        const live = agentsLiveData[a.asset];
-        const domains = live?.domains;
-        if (Array.isArray(domains) && requiredSkills.length > 0) {
-          const matched = requiredSkills.filter((s) => domains.includes(s));
-          const missing = requiredSkills.filter((s) => !domains.includes(s));
-          if (matched.length === requiredSkills.length) {
-            // Full capability match
-            bestMatchAgentId = a.agentId;
-            bestMatchReason = `Agent "${a.agentId}" declares all required capabilities (${requiredSkills.join(', ')}).`; 
-            break;
-          } else if (matched.length > 0 && !bestMatchAgentId) {
-            // Partial match – keep the first partial as fallback
-            bestMatchAgentId = a.agentId;
-            bestMatchReason = `Agent "${a.agentId}" partially matches required capabilities (matched: ${matched.join(', ')}, missing: ${missing.join(', ')}).`;
-          }
-        }
-        // If no capability metadata, fall back to presence of an on‑chain A2A URI
-        if (!bestMatchAgentId && live && live.agent_uri) {
-          bestMatchAgentId = a.agentId;
-          bestMatchReason = `Agent "${a.agentId}" reports an on‑chain A2A metadata URI (${live.agent_uri}), but capability metadata is unavailable; the task will run in simulated demo mode.`;
-        }
-      }
-      if (bestMatchAgentId) {
-        recId = bestMatchAgentId;
-        reason = bestMatchReason;
-      } else {
-        reason = "No registered agents expose verified capabilities, A2A endpoint, or capability metadata; the task will run in simulated demo mode.";
-      }
-    }
-    if (agents.length <= 1 && agentsWithRep.length === 0) {
-      reason = "Only one agent is registered and no reputation data is available; a reliable comparative ranking cannot be established.";
+      const best = candidateSet[0];
+      recId = best.agentId;
+      reason = `Agent "${best.agentId}" selected based on ${matchReason} (no reputation data).`;
     }
     setRecommendationReason(reason);
-    if (!selectedAgentId) {
-      setSelectedAgentId(recId);
-    }
-  }, [agents, agentsLiveData, agentsReputation, agentsLoading, selectedAgentId, category]);
+    if (!selectedAgentId) setSelectedAgentId(recId);
+  }, [agents, agentsLiveData, agentsReputation, agentsLoading, selectedAgentId, category, executionMode]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -245,7 +277,7 @@ export default function TaskCenterClient() {
                 <option value="">-- None (Demo) --</option>
                 {agents.map((a) => (
                   <option key={a.agentId} value={a.agentId}>
-                    {a.asset} ({a.agentId})
+                    {a.asset} ({a.agentId}){a.agentId.startsWith('demo-') ? ' (Demo)' : ''}{agentsLiveData[a.asset]?.a2a_endpoint ? '' : ' (no endpoint)'}
                   </option>
                 ))}
               </select>

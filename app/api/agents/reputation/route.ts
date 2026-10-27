@@ -34,7 +34,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ ok: false, error: "Agent not found" }, { status: 404 });
   }
 
-  const sdk = getReadOnlySdk();
+  const sdk = await getReadOnlySdk();
   let summary = null;
   try {
     summary = await sdk.getSummary(new PublicKey(rec.asset));

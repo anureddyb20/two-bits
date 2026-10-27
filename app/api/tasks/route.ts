@@ -107,7 +107,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!rec) {
       return NextResponse.json({ ok: false, error: "Selected agent not found in registry" }, { status: 400 });
     }
-    const sdk = getReadOnlySdk();
+    const sdk = await getReadOnlySdk();
     let perAgentEndpoint: string | null = null;
     try {
       const onChainAgent = await sdk.loadAgent(new PublicKey(rec.asset));

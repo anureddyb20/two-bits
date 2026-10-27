@@ -17,7 +17,13 @@
  *  5. No NEXT_PUBLIC_ variables are used anywhere in this file.
  */
 
-import { SolanaSDK, IPFSClient } from "8004-solana";
+import type { SolanaSDK, IPFSClient } from "8004-solana";
+// Lazy-loaded imports to avoid Node built‑ins at module load time.
+// The SDK is required only inside the factory functions.
+// Using require() ensures the import occurs at runtime on the server,
+// sidestepping bundler attempts to resolve 'fs/promises' during build.
+// This prevents the 500 error caused by top‑level imports of the Solana SDK.
+
 import { Connection, Keypair } from "@solana/web3.js";
 
 // ---------------------------------------------------------------------------
@@ -42,12 +48,15 @@ export const INDEXER_URL = "https://8004-indexer-dev.qnt.sh";
 
 let _sdkInstance: SolanaSDK | null = null;
 
-export function getReadOnlySdk(): SolanaSDK {
+export async function getReadOnlySdk(): Promise<SolanaSDK> {
   if (!_sdkInstance) {
+    const { SolanaSDK } = await import("8004-solana");
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     _sdkInstance = new SolanaSDK({ cluster: CLUSTER });
   }
-  return _sdkInstance;
+  return _sdkInstance as SolanaSDK;
 }
+
 
 // ---------------------------------------------------------------------------
 // Low-level connectivity check using @solana/web3.js directly.
@@ -207,7 +216,7 @@ export function isSignerConfigured(): boolean {
  *   node_modules/8004-solana/dist/core/ipfs-client.d.ts
  *   { pinataEnabled?: boolean; pinataJwt?: string; url?: string; }
  */
-export function getIpfsClient(): IPFSClient {
+export async function getIpfsClient(): Promise<IPFSClient> {
   const jwt = process.env.PINATA_JWT;
   if (!jwt) {
     throw new ConfigurationError(
@@ -216,6 +225,9 @@ export function getIpfsClient(): IPFSClient {
         "and add the JWT to .env.local."
     );
   }
+  // Dynamic import to avoid top‑level ESM import of IPFSClient.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const { IPFSClient } = await import("8004-solana");
   return new IPFSClient({ pinataEnabled: true, pinataJwt: jwt });
 }
 
@@ -241,10 +253,11 @@ export function isIpfsConfigured(): boolean {
  * IMPORTANT: The returned SDK holds the signer internally. Never serialise
  * or pass this object to client code.
  */
-export function getWriteSdk(): SolanaSDK {
+export async function getWriteSdk(): Promise<SolanaSDK> {
   const signer = getSignerKeypair();
-  const ipfs = getIpfsClient();
-
+  const { IPFSClient, SolanaSDK } = await import("8004-solana");
+  const ipfs = new IPFSClient({ pinataEnabled: true, pinataJwt: process.env.PINATA_JWT || "" });
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   return new SolanaSDK({
     cluster: CLUSTER,
     rpcUrl: RPC_URL,

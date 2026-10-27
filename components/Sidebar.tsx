@@ -73,11 +73,9 @@ const Icons = {
 
 const NAV_ITEMS = [
   { href: "/",                label: "Overview",         icon: Icons.overview  },
-  { href: "/agent-registry",  label: "Agent Registry",   icon: Icons.agents,  phase: 2 },
-  { href: "/task-center",     label: "Task Center",      icon: Icons.tasks,   phase: 3 },
-  { href: "/feedback",        label: "Feedback Hub",     icon: Icons.feedback, phase: 4 },
-  { href: "/trust",           label: "Trust & Validation", icon: Icons.trust, phase: 4 },
-  { href: "/activity",        label: "Activity Logs",    icon: Icons.activity, phase: 4 },
+  { href: "/agent-registry",  label: "Agent Registry",   icon: Icons.agents    },
+  { href: "/task-center",     label: "Task Center",      icon: Icons.tasks     },
+  { href: "/feedback",        label: "Feedback Hub",     icon: Icons.feedback  },
   { href: "/technical",       label: "Technical Details", icon: Icons.technical },
 ];
 
@@ -182,9 +180,6 @@ export default function Sidebar() {
             >
               {item.icon}
               <span>{item.label}</span>
-              {item.phase && !isActive(item.href) && (
-                <span className="nav-item-phase">P{item.phase}</span>
-              )}
             </Link>
           ))}
         </nav>

@@ -239,61 +239,6 @@ function ArchTable() {
 }
 
 // ---------------------------------------------------------------------------
-// Roadmap
-// ---------------------------------------------------------------------------
-const PHASES = [
-  { num: 1, title: "Scaffold & Connectivity",       done: true,  items: ["Next.js 15, TypeScript, Tailwind", "8004-solana SDK (read-only)", "Server-side /api/health probe", "Dashboard redesign"] },
-  { num: 2, title: "Agent Registration & Discovery", done: false, items: ["Register 3–5 agents as Metaplex Core NFTs", "IPFS metadata via Pinata", "Discovery UI with live on-chain data", "ATOM reputation seeding"] },
-  { num: 3, title: "Task Delegation & Mock Agents",  done: false, items: ["Orchestrator: discover + evaluate + select", "Mock agents (Summarizer, Code Reviewer, Analyzer)", "Hire panel + task delegation board"] },
-  { num: 4, title: "Validation & On-Chain Feedback", done: false, items: ["Result validation heuristics", "giveFeedback() / openProofPass() per task", "Solana Explorer links for every tx", "Reputation loop closes"] },
-  { num: 5, title: "Polish & Demo Flow",             done: false, items: ["Guided demo with on-chain transparency sidebar", "Optional Phantom wallet connection", "Final README + architecture diagram"] },
-];
-
-function Roadmap() {
-  return (
-    <Card>
-      <SectionHeading>Implementation Roadmap</SectionHeading>
-      <div className="space-y-3">
-        {PHASES.map((p) => (
-          <div
-            key={p.num}
-            className="flex gap-4 p-3 rounded-md"
-            style={{
-              background: p.done ? "rgba(16,185,129,0.05)" : "var(--bg-elevated)",
-              border: `1px solid ${p.done ? "rgba(16,185,129,0.2)" : "var(--border-subtle)"}`,
-            }}
-          >
-            <div
-              style={{
-                width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
-                background: p.done ? "rgba(16,185,129,0.15)" : "var(--bg-base)",
-                border: `1px solid ${p.done ? "var(--accent-green)" : "var(--border-default)"}`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "0.75rem", fontWeight: 700,
-                color: p.done ? "var(--accent-green)" : "var(--text-muted)",
-              }}
-            >
-              {p.done ? "✓" : p.num}
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-medium text-[var(--text-primary)]">{p.title}</span>
-                <Badge variant={p.done ? "green" : "muted"}>{p.done ? "Complete" : "Pending"}</Badge>
-              </div>
-              <ul className="space-y-0.5">
-                {p.items.map((i) => (
-                  <li key={i} className="text-xs text-[var(--text-muted)] list-disc ml-4">{i}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function TechnicalPage() {
@@ -315,7 +260,6 @@ export default function TechnicalPage() {
         <Divider />
 
         <ArchTable />
-        <Roadmap />
 
         {/* Links */}
         <Card>

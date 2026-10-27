@@ -58,6 +58,12 @@ const Icons = {
       <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
     </svg>
   ),
+  feedback: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M2.5 3.5h11a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-6.5l-3.5 2.5v-2.5h-1a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z" strokeLinejoin="round" />
+      <path d="M6 7.5l1.5 1.5 3-3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
   solana: (
     <svg viewBox="0 0 16 16" fill="currentColor">
       <path d="M3 11.5h8.5l1.5-1.5H4.5L3 11.5zm0-3.5h8.5L13 6.5H4.5L3 8zM4.5 4.5L3 6H13L11.5 4.5H4.5z" opacity=".8"/>
@@ -69,6 +75,7 @@ const NAV_ITEMS = [
   { href: "/",                label: "Overview",         icon: Icons.overview  },
   { href: "/agent-registry",  label: "Agent Registry",   icon: Icons.agents,  phase: 2 },
   { href: "/task-center",     label: "Task Center",      icon: Icons.tasks,   phase: 3 },
+  { href: "/feedback",        label: "Feedback Hub",     icon: Icons.feedback, phase: 4 },
   { href: "/trust",           label: "Trust & Validation", icon: Icons.trust, phase: 4 },
   { href: "/activity",        label: "Activity Logs",    icon: Icons.activity, phase: 4 },
   { href: "/technical",       label: "Technical Details", icon: Icons.technical },

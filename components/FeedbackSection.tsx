@@ -151,13 +151,22 @@ export function FeedbackSection({
               {existingFeedback.outcome}
             </Badge>
           </div>
-          <button
-            type="button"
-            className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] underline cursor-pointer transition-colors"
-            onClick={() => setIsOpen(true)}
-          >
-            Edit Feedback
-          </button>
+          <div className="flex items-center gap-2.5">
+            <a
+              href="/feedback"
+              className="text-xs text-[var(--accent-indigo)] hover:underline cursor-pointer"
+            >
+              Public Reviews ↗
+            </a>
+            <span className="text-[var(--border-strong)]">·</span>
+            <button
+              type="button"
+              className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] underline cursor-pointer transition-colors"
+              onClick={() => setIsOpen(true)}
+            >
+              Edit Feedback
+            </button>
+          </div>
         </div>
 
         {/* Detailed Metrics */}
@@ -220,7 +229,7 @@ export function FeedbackSection({
   // 2. Unopened trigger button
   if (!isOpen) {
     return (
-      <div className="mt-3 pt-2.5 border-t border-[var(--border-default)]">
+      <div className="mt-3 pt-2.5 border-t border-[var(--border-default)] flex items-center justify-between flex-wrap gap-2">
         <button
           type="button"
           className="btn btn-secondary btn-sm flex items-center gap-1.5 hover:border-[var(--accent-indigo)] transition-all cursor-pointer"
@@ -229,6 +238,12 @@ export function FeedbackSection({
           <span className="text-amber-400">★</span>
           <span>Rate Agent & Leave Feedback</span>
         </button>
+        <a
+          href="/feedback"
+          className="text-xs text-[var(--text-muted)] hover:text-[var(--accent-indigo)] transition-colors flex items-center gap-1"
+        >
+          View Public Feedback Hub ↗
+        </a>
       </div>
     );
   }

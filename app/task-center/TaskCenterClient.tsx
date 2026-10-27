@@ -63,6 +63,7 @@ export default function TaskCenterClient() {
   const [category, setCategory] = useState("general");
   const [submitting, setSubmitting] = useState(false);
   const [executionMode, setExecutionMode] = useState<"demo" | "live">("demo");
+  const [confirmHire, setConfirmHire] = useState(false);
 
   // Load task history
   useEffect(() => {

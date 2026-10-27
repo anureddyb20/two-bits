@@ -25,6 +25,8 @@ import type { SolanaSDK, IPFSClient } from "8004-solana";
 // This prevents the 500 error caused by top‑level imports of the Solana SDK.
 
 import { Connection, Keypair } from "@solana/web3.js";
+import fs from "fs";
+import path from "path";
 
 // ---------------------------------------------------------------------------
 // Configuration – read from server environment variables only.
@@ -296,8 +298,6 @@ export function getClientSignerKeypair(): Keypair {
 
   // Check new-solana-wallet.json in process.cwd()
   try {
-    const fs = require("fs");
-    const path = require("path");
     const walletPath = path.join(process.cwd(), "new-solana-wallet.json");
     if (fs.existsSync(walletPath)) {
       const raw = fs.readFileSync(walletPath, "utf-8");

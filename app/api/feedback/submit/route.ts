@@ -108,12 +108,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           endpoint: process.env.COORDINATOR_AGENT_ENDPOINT || "https://github.com/HackToBerFest-VVCE/t2c1-two-bits",
         });
 
-        if (onChainRes && onChainRes.success && onChainRes.signature) {
+        if (onChainRes && "signature" in onChainRes && onChainRes.success && onChainRes.signature) {
           txSignature = onChainRes.signature;
           explorerUrl = `https://explorer.solana.com/tx/${onChainRes.signature}?cluster=devnet`;
           onChainNote = "Verified on Solana Devnet";
-        } else if (onChainRes && onChainRes.error) {
-          onChainNote = `On-chain note: ${onChainRes.error}`;
+        } else if (onChainRes && "error" in onChainRes && onChainRes.error) {
+          onChainNote = `On-chain note: ${String(onChainRes.error)}`;
         }
       } catch (err) {
         console.warn("On-chain feedback transaction failed:", err);

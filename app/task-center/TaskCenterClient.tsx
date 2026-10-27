@@ -2,6 +2,8 @@
 
 import { Card, SectionHeading, EmptyState, DataRow } from "@/components/ui";
 import { CATEGORY_TO_SKILLS } from "@/lib/skillMap";
+import { FeedbackSection, TaskFeedback } from "@/components/FeedbackSection";
+import { ResultViewer } from "@/components/ResultViewer";
 const COORDINATOR_AGENT_ID = "coordinator";
 import { useEffect, useState } from "react";
 
@@ -47,19 +49,8 @@ type ReputationSummary = {
 };
 
 export default function TaskCenterClient() {
-  // Feedback UI state
-  const [feedbackTask, setFeedbackTask] = useState<Task | null>(null);
-  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
-  const [feedbackError, setFeedbackError] = useState<string | null>(null);
-  const [feedbackSuccess, setFeedbackSuccess] = useState<string | null>(null);
-  // Form fields
-  const [overallRating, setOverallRating] = useState<number>(5);
-  const [outcome, setOutcome] = useState<string>('successful');
-  const [accuracy, setAccuracy] = useState<number>(5);
-  const [quality, setQuality] = useState<number>(5);
-  const [speed, setSpeed] = useState<number>(5);
-  const [review, setReview] = useState<string>('');
-  const [tags, setTags] = useState<string[]>([]);
+  // Feedbacks mapped by taskId
+  const [feedbacks, setFeedbacks] = useState<Record<string, TaskFeedback>>({});
 
   // Types for on‑chain live data returned by /api/agents/registered?load=true
   type LiveDataMap = Record<string, {
@@ -107,6 +98,20 @@ export default function TaskCenterClient() {
         setLoadError(e instanceof Error ? e.message : String(e));
         setLoading(false);
       });
+
+    // Load existing task feedbacks
+    fetch("/api/feedback/list")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && Array.isArray(data.feedbacks)) {
+          const map: Record<string, TaskFeedback> = {};
+          data.feedbacks.forEach((fb: TaskFeedback) => {
+            map[fb.taskId] = fb;
+          });
+          setFeedbacks(map);
+        }
+      })
+      .catch(() => {});
 
     // Load registered agents (independent of tasks)
     fetch("/api/agents/registered?load=true")
@@ -421,81 +426,37 @@ export default function TaskCenterClient() {
                 <DataRow label="Mode">{t.mode === "live" ? "Live Agent" : "Simulated Demo"}</DataRow>
                 {t.agentId && <DataRow label="Agent">{t.agentId}</DataRow>}
                 <DataRow label="Status">{t.status}</DataRow>
-                {t.result && <DataRow label="Result">{t.result}</DataRow>}
+                {t.result && (
+                  <div className="py-2 border-b border-[var(--border-subtle)]">
+                    <span className="data-row-key text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-1">
+                      Execution Result
+                    </span>
+                    <ResultViewer result={t.result} />
+                  </div>
+                )}
                 <DataRow label="Created">{new Date(t.createdAt).toLocaleString()}</DataRow>
-                {/* Feedback UI */}
+
+                {/* Feedback Component */}
                 {(t.status === "completed" || t.status === "failed") && (
-                  feedbackTask && feedbackTask.id === t.id ? (
-                    <div className="mt-2 space-y-2">
-                      <div className="flex gap-2">
-                        <select className="task-select" value={overallRating} onChange={e => setOverallRating(parseInt(e.target.value,10))}>
-                          {[1,2,3,4,5].map(v => <option key={v} value={v}>{v} ★</option>)}
-                        </select>
-                        <select className="task-select" value={outcome} onChange={e => setOutcome(e.target.value)}>
-                          <option value="successful">Successful</option>
-                          <option value="partial">Partially Successful</option>
-                          <option value="unsuccessful">Unsuccessful</option>
-                        </select>
-                        <select className="task-select" value={accuracy} onChange={e => setAccuracy(parseInt(e.target.value,10))}>
-                          {[1,2,3,4,5].map(v => <option key={v} value={v}>{v} Accuracy</option>)}
-                        </select>
-                        <select className="task-select" value={quality} onChange={e => setQuality(parseInt(e.target.value,10))}>
-                          {[1,2,3,4,5].map(v => <option key={v} value={v}>{v} Quality</option>)}
-                        </select>
-                        <select className="task-select" value={speed} onChange={e => setSpeed(parseInt(e.target.value,10))}>
-                          {[1,2,3,4,5].map(v => <option key={v} value={v}>{v} Speed</option>)}
-                        </select>
-                      </div>
-                      <textarea className="task-textarea" rows={2} placeholder="Optional review" value={review} onChange={e => setReview(e.target.value)} />
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {['Incorrect result','Incomplete result','Slow response','Poor instructions','Other'].map(tag => (
-                          <label key={tag} className="inline-flex items-center">
-                            <input type="checkbox" className="form-checkbox" checked={tags.includes(tag)} onChange={e => {
-                              if (e.target.checked) setTags([...tags, tag]); else setTags(tags.filter(t => t !== tag));
-                            }} />
-                            <span className="ml-1 text-sm">{tag}</span>
-                          </label>
-                        ))}
-                      </div>
-                      {feedbackError && <p className="text-sm text-red-500">{feedbackError}</p>}
-                      {feedbackSuccess && <p className="text-sm text-green-500">{feedbackSuccess}</p>}
-                      <div className="flex gap-2">
-                        <button className="btn btn-primary btn-sm" disabled={feedbackSubmitting} onClick={async () => {
-                          setFeedbackSubmitting(true);
-                          setFeedbackError(null);
-                          setFeedbackSuccess(null);
-                          try {
-                            const res = await fetch('/api/feedback/submit', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                taskId: t.id,
-                                agentId: t.agentId,
-                                executionMode: t.mode,
-                                overallRating,
-                                outcome,
-                                accuracy,
-                                quality,
-                                speed,
-                                review,
-                                tags,
-                              }),
-                            });
-                            const data = await res.json();
-                            if (!res.ok) throw new Error(data.error || 'Submission failed');
-                            setFeedbackSuccess('Feedback saved');
-                          } catch (e) {
-                            setFeedbackError(e instanceof Error ? e.message : String(e));
-                          } finally {
-                            setFeedbackSubmitting(false);
-                          }
-                        }}>Submit Feedback</button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => setFeedbackTask(null)}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button className="btn btn-ghost btn-sm mt-2" onClick={() => setFeedbackTask(t)}>Leave Feedback</button>
-                  )
+                  <FeedbackSection
+                    taskId={t.id}
+                    agentId={t.agentId}
+                    mode={t.mode}
+                    existingFeedback={feedbacks[t.id]}
+                    onFeedbackSaved={(fb) => {
+                      setFeedbacks((prev) => ({ ...prev, [t.id]: fb }));
+                      if (t.agentId) {
+                        fetch(`/api/agents/reputation?agentId=${encodeURIComponent(t.agentId)}`)
+                          .then((r) => r.json())
+                          .then((d) => {
+                            if (d.ok && d.summary) {
+                              setAgentsReputation((prev) => ({ ...prev, [t.agentId!]: d.summary }));
+                            }
+                          })
+                          .catch(() => {});
+                      }
+                    }}
+                  />
                 )}
               </div>
             ))}
